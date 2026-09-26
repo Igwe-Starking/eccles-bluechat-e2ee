@@ -1,0 +1,46 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+	
+	<TextView
+		android:layout_height="wrap_content"
+		android:layout_width="match_parent"
+		android:textAlignment="center"
+		android:id="@+id/tipText"
+		android:gravity="center"
+		android:text="tap and hold a chat for options"
+		android:textSize="10sp"
+		android:textColor="#339"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintLeft_toLeftOf="parent"
+		app:layout_constraintRight_toRightOf="parent"
+		app:layout_constraintBottom_toTopOf="@+id/fragment_list"
+		android:layout_margin="3dp"
+		android:ellipsize="marquee"
+		android:marqueeRepeatLimit="marquee_forever"
+		android:singleLine="true" />
+		
+	<androidx.recyclerview.widget.RecyclerView
+		android:id="@+id/fragment_list"
+		android:layout_height="0dp"
+		android:layout_width="match_parent"
+		app:layout_constraintLeft_toLeftOf="parent"
+		app:layout_constraintRight_toRightOf="parent"
+		app:layout_constraintTop_toBottomOf="@+id/tipText"
+		app:layout_constraintBottom_toBottomOf="parent"
+		android:layout_margin="3dp"
+		android:clipToPadding="false" />
+		
+	<com.google.android.material.floatingactionbutton.FloatingActionButton
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="bottom | end"
+		android:layout_margin="20dp"
+		app:layout_constraintRight_toRightOf="parent"
+		app:layout_constraintBottom_toBottomOf="parent"
+		android:contentDescription="start button"
+		app:backgroundTint="?attr/colorPrimaryVariant"
+		android:id="@+id/start_button" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

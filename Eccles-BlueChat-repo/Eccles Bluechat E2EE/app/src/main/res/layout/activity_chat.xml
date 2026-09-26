@@ -1,0 +1,91 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+	android:background="#776"
+    android:layout_height="match_parent">
+	
+	<androidx.appcompat.widget.Toolbar
+		android:layout_height="?attr/actionBarSize"
+		android:layout_width="match_parent"
+		android:id="@+id/chat_tools"
+		android:background="?attr/colorPrimaryVariant"
+		app:contentInsetLeft="0dp"
+		app:contentInsetStart="0dp"
+		app:contentInsetStartWithNavigation="0dp"
+		app:flow_horizontalGap="0dp"
+		app:layout_constraintTop_toTopOf="parent" />
+		
+	<androidx.recyclerview.widget.RecyclerView
+		android:layout_height="0dp"
+		android:layout_width="match_parent"
+		android:id="@+id/chat_list"
+		android:layout_marginTop="10dp"
+		android:paddingTop="30dp"
+		android:paddingBottom="50dp"
+		android:clipToPadding="false"
+		app:layout_constraintTop_toBottomOf="@+id/chat_tools"
+		app:layout_constraintBottom_toTopOf="@+id/input_parent" />
+		
+	<androidx.cardview.widget.CardView
+		android:layout_height="wrap_content"
+		android:layout_width="wrap_content"
+		android:layout_marginBottom="15dp"
+		android:layout_marginLeft="10dp"
+		app:cardBackgroundColor="#eec"
+		app:cardCornerRadius="25dp"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintLeft_toLeftOf="parent"
+		app:layout_constraintRight_toLeftOf="@+id/send_bt"
+		android:id="@+id/input_parent">
+		
+		<LinearLayout
+			android:layout_height="wrap_content"
+			android:layout_width="wrap_content"
+			android:orientation="horizontal">
+			
+			<ImageView
+				android:layout_height="40dp"
+				android:layout_width="40dp"
+				android:id="@+id/picture"
+				android:src="@android:drawable/ic_menu_camera"
+				android:layout_margin="5dp" />
+				
+			<ImageView
+				android:layout_height="40dp"
+				android:layout_width="40dp"
+				android:id="@+id/carm"
+				android:src="@drawable/file"
+				android:layout_margin="5dp" />
+				
+			<EditText
+				android:layout_height="40dp"
+				android:singleLine="false"
+				android:maxLines="10"
+				android:layout_width="100dp"
+				android:hint="Message"
+				android:textColor="#333"
+				android:id="@+id/input" />
+		</LinearLayout>
+	</androidx.cardview.widget.CardView>
+	
+	<com.google.android.material.floatingactionbutton.FloatingActionButton
+		android:layout_height="wrap_content"
+		android:layout_width="wrap_content"
+		android:id="@+id/send_bt"
+		android:gravity="bottom | end"
+		android:src="@android:drawable/presence_audio_away"
+		app:backgroundTint="?attr/colorPrimary"
+		app:layout_constraintBottom_toBottomOf="parent"
+		app:layout_constraintRight_toRightOf="parent"
+		android:layout_margin="10dp" />
+		
+	<Chronometer
+		android:layout_height="wrap_content"
+		android:id="@+id/rec_dur"
+		android:layout_width="wrap_content"
+		app:layout_constraintRight_toRightOf="parent"
+		app:layout_constraintBottom_toTopOf="@+id/send_bt"
+		android:layout_margin="10dp"
+		android:visibility="gone" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

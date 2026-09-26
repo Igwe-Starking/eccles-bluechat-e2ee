@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<menu
+	xmlns:android="http://schemas.android.com/apk/res/android">
+
+	<item
+		android:id="@+id/from_carm"
+		android:title="From Camera"
+		android:icon="@android:drawable/ic_menu_camera" />
+
+	<item
+		android:id="@+id/from_file"
+		android:title="From Files"
+		android:icon="@drawable/file" />
+</menu>

@@ -1,0 +1,37 @@
+# Gradle
+.gradle/
+build/
+app/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystores (never commit signing keys)
+*.jks
+*.keystore
+
+# Logs
+*.log
+
+# Build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Generated files
+bin/
+gen/
+out/
+
+# Android Profiling
+*.hprof

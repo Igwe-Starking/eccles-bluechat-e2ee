@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="starking.eccles.bluechat">
+
+    
+	<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+	<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />	
+	<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+	<uses-permission android:name="android.permission.RECORD_AUDIO" />
+	<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+	<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+	<!--
+		Required alongside the Caller service's android:foregroundServiceType="microphone"
+		declaration below. As of Android 14 (API 34, this app's targetSdk), starting a foreground
+		service with a declared type requires the matching FOREGROUND_SERVICE_* permission for
+		every type listed, in addition to the generic FOREGROUND_SERVICE permission above -
+		omitting it throws a SecurityException at the startForeground() call itself.
+		(FOREGROUND_SERVICE_PHONE_CALL was previously also declared here to match a
+		foregroundServiceType="phoneCall|microphone" declaration, but that type requires the app
+		to either be the default dialer or hold MANAGE_OWN_CALLS via a registered Telecom
+		ConnectionService/PhoneAccount - neither of which this app has, so it would ALSO have
+		thrown a SecurityException regardless of the permission being present. Since this app
+		manages calls entirely on its own over Bluetooth rather than through Android's Telecom
+		framework, "phoneCall" was simply the wrong type to declare; "microphone" alone
+		accurately describes what this foreground service does.)
+	-->
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+	<!--
+		Required alongside Listener's android:foregroundServiceType="connectedDevice"
+		declaration. As of Android 14 (API 34), like the phoneCall/microphone types above, this
+		requires its own FOREGROUND_SERVICE_* permission in addition to the generic
+		FOREGROUND_SERVICE permission. This type also requires the app hold at least one of
+		BLUETOOTH_CONNECT/BLUETOOTH_SCAN/BLUETOOTH_ADVERTISE/etc, which it already does.
+	-->
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+	<!--
+		Required for any notification to be shown at all on Android 13+ (API 33), including the
+		new-message/new-connection notifications built by EcclesNotifier and the in-call
+		notification Caller shows via startForeground(). Without this, the app could never even
+		prompt the user to grant it, and all such notifications would be silently suppressed on
+		any Android 13+ device.
+	-->
+	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+	<uses-permission android:name="android.permission.CAMERA" />
+	
+	<!--
+		android.feature.BLUETOOTH was not a real, recognized feature identifier - the
+		documented one is android.hardware.bluetooth (see
+		https://developer.android.com/guide/topics/manifest/uses-feature-element). The invalid
+		name meant this declaration wasn't actually doing the device-filtering it looked like it
+		was doing.
+	-->
+	<uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+	<!--
+		Camera is not required=true: this app's core chat functionality (text/audio/image/video
+		attachments received or sent as files) does not need a camera at all - only outgoing
+		video calls do, and that's already handled by runtime permission checks. Declaring it
+		required here would hide the app entirely from otherwise-compatible cameraless devices.
+	-->
+	<uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/icon"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/icon"
+        android:supportsRtl="true"
+		android:name=".EcclesApplication"
+		android:theme="@style/Theme.MyApplication">
+		
+      
+        <activity
+            android:name=".MainActivity"
+			android:theme="@style/Splash"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+		<activity android:name=".MajorActivity" android:clearTaskOnLaunch="true" android:allowEmbedded="true" android:exported="false"/>
+		<activity android:name=".SelectActivity" android:theme="@style/SelectTheme" />
+		<activity android:name="starking.eccles.bluechat.activities.ChatActivity" android:exported="false" android:allowEmbedded="true" android:resizeableActivity="true"/>
+		<activity android:name="starking.eccles.bluechat.activities.CallActivity" android:exported="false" android:resizeableActivity="true"/>
+		<activity android:name="starking.eccles.bluechat.activities.VideoActivity" android:exported="false" android:resizeableActivity="true"/>
+		<activity android:name="starking.eccles.bluechat.activities.AccountActivity" android:theme="@style/PreferenceTheme" />
+		<activity android:name="starking.eccles.bluechat.activities.InfoActivity" android:theme="@style/SelectTheme" />
+		<activity android:name="starking.eccles.bluechat.activities.PreferenceActivity" android:theme="@style/PreferenceTheme" />
+		<activity android:name="starking.eccles.bluechat.activities.HelpActivity" android:theme="@style/PreferenceTheme" />
+		<activity android:name="starking.eccles.bluechat.activities.ViewActivity" android:theme="@style/PreferenceTheme" />
+		
+		<receiver android:name="starking.eccles.receivers.BSender" />
+		<receiver android:name="starking.eccles.receivers.CallEnder" />
+		<!--
+			AvailReceiver and BluetoothStateReceiver are intentionally NOT declared here.
+			Both listen for implicit system broadcasts (ACTION_DISCOVERY_STARTED/FINISHED,
+			BluetoothDevice.ACTION_FOUND, and BluetoothAdapter.ACTION_STATE_CHANGED
+			respectively) - as of Android 8.0 (API 26) Background Execution Limits, apps
+			targeting API 26+ cannot manifest-declare receivers for most implicit broadcasts,
+			and none of these four actions are on Android's exemption list (that list only
+			covers connection-state broadcasts like BluetoothHeadset/BluetoothA2dp
+			ACTION_CONNECTION_STATE_CHANGED and ACL_CONNECTED/DISCONNECTED - not discovery or
+			the adapter's own on/off state). A manifest <receiver> entry for either of these
+			would be silently ignored by the OS and do nothing. Both are correctly registered
+			dynamically instead, at runtime, via ContextCompat.registerReceiver(): AvailReceiver
+			in SelectActivity (only while actively scanning), and BluetoothStateReceiver in
+			EcclesApplication#onCreate(). Previously both were ALSO declared here, which had no
+			effect (confirmed dead, not a double-firing risk) but was misleading - it looked
+			like there were two working registrations when only the dynamic one ever did
+			anything.
+		-->
+		
+		<service android:name="starking.eccles.bluechat.service.Listener" android:exported="false" android:foregroundServiceType="connectedDevice" />
+		<service android:name="starking.eccles.bluechat.service.Reader" android:exported="false" />
+		<service android:name="starking.eccles.bluechat.service.Caller" android:exported="false" android:foregroundServiceType="microphone" />
+    </application>
+
+</manifest>

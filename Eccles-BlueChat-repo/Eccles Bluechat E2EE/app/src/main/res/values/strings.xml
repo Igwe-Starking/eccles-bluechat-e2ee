@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Eccles BlueChat</string>
+	<string name="chats">Chats</string>
+	<string name="calls">Calls</string>
+	<string name="videos">Video Calls</string>
+	<string name="dev_info">
+		This software is the property of starking cooperation
+		owned by Nwobodo Ecclesiates Chidera\n\n
+		P.O box 40001 enugu state Nigeria\n
+		Email: nwobodoeccles@gmail.com\n
+		Mobile: +2347044670110\n\n
+		All rights Reserved @starking cooperation ©2023
+	</string>
+</resources>
