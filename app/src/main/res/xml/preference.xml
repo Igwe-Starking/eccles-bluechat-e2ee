@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+	<Preference
+		app:title="Account Settings"
+		app:summary="Tap to customize your profile"
+		app:key="profile" />
+		
+	<Preference
+		app:title="Send Feedback"
+		app:summary="report encountered issues to Eccles"
+		app:key="feedback" />
+		
+	<Preference
+		app:title="Set Ringtone"
+		app:summary="this is the tone that will play when you are receiving incoming voice or video call"
+		app:key="tone" />
+	
+	<SwitchPreferenceCompat
+		app:title="Dark theme"
+		app:key="theme"
+		app:summary="toggle to enable night mode" />
+		
+	<PreferenceCategory
+		app:title="Bluetooth Settings"
+		app:summary="bluetooth related settings">
+		
+		<CheckBoxPreference
+			app:title="Auto Enable bluetooth"
+			app:summary="enable or disable bluechat from turning on bluetooth when launched"
+			app:key="auto_enable" />
+		
+		<CheckBoxPreference
+			app:title="Auto Disable bluetooth"
+			app:summary="enable or disable bluechat from turning off bluetooth when exited"
+			app:key="auto_disable" />
+			
+		<CheckBoxPreference
+			app:title="Disable if Enabled"
+			app:summary="bluechat will only close bluetooth if it was opened by it"
+			app:defaultValue="true"
+			app:key="auto_if" />
+	</PreferenceCategory>
+	
+	<PreferenceCategory
+		app:title="Connection Settings"
+		app:summary="connection related settings">
+		
+		<SwitchPreferenceCompat
+			app:title="Auto Listen for Incoming Connections"
+			app:summary="if off you will always be offline when the app start you have to manually enable active mode by tapping the eye icon at the tool bar" 
+			app:key="auto_listen"
+			app:defaultValue="true" />
+			
+		<SwitchPreferenceCompat
+			app:title="Multiple connections"
+			app:summary="this enable you to connect to multiple devices or to allow multiple devices to connect to you\nThis is not recommended as multiple connections can decrease performance and increase battery consuption"
+			app:defaultValue="true"
+			app:key="allow_multiple" />
+			
+		<EditTextPreference
+			app:title="Max Number of Connections"
+			app:summary="Specify how many devices that can be connected to you at a time"
+			app:defaultValue="5"
+			app:key="num_con" />
+			
+		<SwitchPreferenceCompat
+			app:title="Disconnect On Call"
+			app:summary="when in voice or video call disconnect all other connected devices\nthis is recommended to increase performance as bluetooth calling is a heavy operation"
+			app:key="disconnect_oncall" />
+			
+		<SwitchPreferenceCompat
+			app:title="Dont Scan While Connected"
+			app:summary="bluetooth scanning is a heavy, if enabled bluechat wont scan for available devices if you are currently connected to a device"
+			app:key="dont_scan" />
+	</PreferenceCategory>
+	
+	<CheckBoxPreference
+		app:title="Never Show Alert"
+		app:summary="if enabled bluechat will never alert you for any information\nthis is not recommended as alerts are neccessary to notify you about important information"
+		app:key="no_alert" />
+		
+	<Preference
+		app:title="Blocked Devices"
+		app:summary="tap to see the list of devices you blocked"
+		app:key="blocked" />
+
+</PreferenceScreen>

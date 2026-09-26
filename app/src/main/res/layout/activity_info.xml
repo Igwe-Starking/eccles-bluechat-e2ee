@@ -1,0 +1,63 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+	android:gravity="center_horizontal"
+	android:textAlignment="center"
+    android:orientation="vertical">
+	
+	<LinearLayout
+		android:layout_height="match_parent"
+		android:layout_width="match_parent"
+		android:textAlignment="center"
+		android:gravity="center"
+		android:orientation="vertical">
+	
+	<TextView
+		android:layout_height="wrap_content"
+		android:layout_width="wrap_content"
+		android:textSize="25sp"
+		android:textStyle="bold"
+		android:textAlignment="center"
+		android:text="Eccles Bluechat:"
+		android:textColor="#33a" />
+		
+	<TextView
+		android:layout_height="wrap_content"
+		android:layout_width="match_parent"
+		android:textSize="16sp"
+		android:textColor="#111"
+		android:textAlignment="center"
+		android:text="This app is solely ment for chatting,calling and video calling using android bluetooth technology\n
+		bluetooth consumes battery so by default this app
+		does'nt automatically start,to use the functionalities of this app bluetooth must be enabled
+		if you intend to scan for devices using this app then location permission must be granted\n
+		Eccles never access ur location using this app,so the location permission is solely used to discover devices\n
+		if you intend to send images,audios or videos through this app you must grant storage permission which will be requested by this app,
+		microphone permission is neccessary to record and send voice notes\n
+		if you are using android 10 or higher be sure to grant manage all files permission in Settings->apps->Eccles Bluechat->permissions->Manage All files, this is nessary if you want to view your received files outside this app\n
+		if you did not grant any of these permissions trying to use their feature can lead to undesirable behavior of this app,
+		make sure to use the exit option in the options menu located at the top right conner of this app when you are done using this app,
+		this is neccessary to optimse system resources held by this app,
+		if you encountered any problem while using this app refer to the app settings->report and send your feedback to Eccles,
+		Eccles will do their best to make sure your problem is resolved\n
+		for more information on how to use this app refer to the app help in the apps options menu located in the top right conner of this app." />
+	
+	<TextView
+		android:layout_height="wrap_content"
+		android:layout_width="match_parent"
+		android:textSize="25sp"
+		android:textStyle="bold"
+		android:textAlignment="center"
+		android:textColor="#33a"
+		android:text="Developer Info:" />
+	<TextView
+		android:layout_height="wrap_content"
+		android:layout_width="match_parent"
+		android:textAlignment="center"
+		android:textColor="#111"
+		android:textSize="16sp"
+		android:text="@string/dev_info" />
+
+</LinearLayout>
+</ScrollView>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+	<EditTextPreference
+		app:title="Profile Name"
+		app:key="name"
+		app:summary="your profile name is visible to all devices" />
+	
+	<Preference
+		app:title="Profile Address"
+		app:key="address"
+		app:summary="your profile address is visible to all devices and cant be changed" />
+	
+</PreferenceScreen>

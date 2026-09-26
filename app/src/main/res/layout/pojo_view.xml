@@ -1,0 +1,115 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+	android:layout_marginVertical="10dp"
+	android:layout_marginBottom="20dp"
+	android:paddingBottom="10dp"
+    android:layout_height="wrap_content">
+	
+	<ImageView
+		android:layout_width="40dp"
+		android:layout_height="40dp"
+		android:layout_marginRight="5dp"
+		app:layout_constraintLeft_toLeftOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintBottom_toBottomOf="parent"
+		android:id="@+id/profile_icon" />
+		
+	<FrameLayout
+		android:layout_height="40dp"
+		android:layout_width="40dp"
+		app:layout_constraintLeft_toLeftOf="@+id/profile_icon"
+		app:layout_constraintRight_toRightOf="@+id/profile_icon"
+		app:layout_constraintTop_toTopOf="@+id/profile_icon"
+		app:layout_constraintBottom_toBottomOf="@+id/profile_icon">
+		
+		<androidx.constraintlayout.widget.ConstraintLayout
+			android:layout_height="match_parent"
+			android:layout_width="match_parent">
+			
+			<ImageView
+				android:layout_height="wrap_content"
+				android:layout_width="wrap_content"
+				app:layout_constraintRight_toRightOf="parent"
+				app:layout_constraintBottom_toBottomOf="parent"
+				android:id="@+id/active_status" />
+				
+		</androidx.constraintlayout.widget.ConstraintLayout>
+	</FrameLayout>
+		
+	<TextView
+		android:layout_height="wrap_content"
+		android:layout_width="wrap_content"
+		android:textStyle="bold"
+		android:textSize="20sp"
+		android:maxLines="1"
+		android:singleLine="true"
+		app:layout_constraintLeft_toRightOf="@+id/profile_icon"
+		app:layout_constraintRight_toLeftOf="@+id/signal"
+		app:layout_constraintTop_toTopOf="parent"
+		android:textColor="?attr/colorPrimaryVariant"
+		android:id="@+id/title" />
+	
+	<TextView
+		android:id="@+id/message"
+		android:layout_height="wrap_content"
+		android:layout_width="wrap_content"
+		android:maxLines="1"
+		android:singleLine="true"
+		android:layout_marginLeft="10dp"
+		android:textColor="#2b2"
+		app:layout_constraintLeft_toLeftOf="@+id/profile_icon"
+		app:layout_constraintRight_toLeftOf="@+id/signal"
+		app:layout_constraintTop_toBottomOf="@+id/title" />
+		
+	<TextView
+		android:id="@+id/status"
+		android:textAlignment="center"
+		android:gravity="center"
+		android:maxLines="1"
+		android:singleLine="true"
+		android:textSize="10sp"
+		android:layout_marginLeft="10dp"
+		android:textColor="#55e"
+		android:layout_height="wrap_content"
+		android:layout_width="wrap_content"
+		app:layout_constraintTop_toBottomOf="@+id/message"
+		app:layout_constraintLeft_toLeftOf="@+id/profile_icon"
+		app:layout_constraintRight_toLeftOf="@+id/signal" />
+		
+	<ImageView
+		android:id="@+id/signal"
+		android:layout_height="30dp"
+		android:layout_width="30dp"
+		android:visibility="invisible"
+		android:src="@drawable/signal_drawable"
+		app:layout_constraintRight_toRightOf="parent"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintBottom_toBottomOf="parent"
+		android:layout_margin="3dp" />
+
+	<FrameLayout
+		android:layout_height="30dp"
+		android:layout_width="30dp"
+		app:layout_constraintLeft_toLeftOf="@+id/signal"
+		app:layout_constraintRight_toLeftOf="@+id/signal"
+		app:layout_constraintTop_toBottomOf="@+id/signal"
+		app:layout_constraintBottom_toBottomOf="@+id/signal">
+	
+		<androidx.constraintlayout.widget.ConstraintLayout
+			android:layout_height="match_parent"
+			android:layout_width="match_parent">
+	
+			<ImageView
+				android:layout_height="wrap_content"
+				android:layout_width="wrap_content"
+				app:layout_constraintRight_toRightOf="parent"
+				app:layout_constraintBottom_toBottomOf="parent"
+				android:layout_margin="10dp"
+				android:id="@+id/unread_status" />
+	
+		</androidx.constraintlayout.widget.ConstraintLayout>
+	</FrameLayout>
+	
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,95 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+	
+	<SurfaceView
+		android:id="@+id/caller_video"
+		android:layout_height="match_parent"
+		android:layout_width="match_parent" />
+		
+	<FrameLayout
+		android:layout_height="match_parent"
+		android:layout_width="match_parent">
+		
+		<androidx.constraintlayout.widget.ConstraintLayout
+			android:layout_height="match_parent"
+			android:layout_width="match_parent">
+			
+			<ImageView
+				android:layout_height="25dp"
+				android:layout_width="25dp"
+				app:layout_constraintLeft_toLeftOf="@+id/duration"
+				android:layout_margin="10dp"
+				android:src="@drawable/ic_video_call"
+				android:id="@+id/ic_top" />
+				
+			<Chronometer
+				android:layout_height="wrap_content"
+				android:layout_width="wrap_content"
+				android:id="@+id/duration"
+				app:layout_constraintRight_toRightOf="parent"
+				android:layout_margin="10dp"
+				android:drawableLeft="@android:drawable/presence_online" />
+			<ImageView
+				android:layout_height="100dp"
+				android:layout_width="100dp"
+				android:layout_marginTop="200dp"
+				android:id="@+id/icon"
+				app:layout_constraintLeft_toLeftOf="parent"
+				app:layout_constraintRight_toRightOf="parent"
+				app:layout_constraintTop_toBottomOf="@+id/ic_top" />
+				
+			<TextView
+				android:layout_height="wrap_content"
+				android:layout_width="wrap_content"
+				android:textSize="15dp"
+				android:maxLines="1"
+				android:id="@+id/name"
+				app:layout_constraintLeft_toLeftOf="parent"
+				app:layout_constraintRight_toRightOf="parent"
+				app:layout_constraintTop_toBottomOf="@+id/icon"
+				android:layout_marginTop="20dp" />
+				
+			<com.google.android.material.floatingactionbutton.FloatingActionButton
+				android:layout_height="wrap_content"
+				android:layout_width="wrap_content"
+				android:id="@+id/reject_bt"
+				app:backgroundTint="#e33"
+				android:src="@drawable/ic_call"
+				android:rotation="-90"
+				app:layout_constraintLeft_toLeftOf="parent"
+				app:layout_constraintBottom_toBottomOf="parent"
+				android:layout_margin="15dp" />
+				
+			<com.google.android.material.floatingactionbutton.FloatingActionButton
+				android:layout_height="wrap_content"
+				android:layout_width="wrap_content"
+				android:id="@+id/accept_bt"
+				app:backgroundTint="#3f3"
+				android:src="@drawable/ic_call"
+				app:layout_constraintRight_toRightOf="parent"
+				app:layout_constraintBottom_toBottomOf="parent"
+				android:layout_margin="15dp"
+				android:rotation="90" />
+			
+			
+		</androidx.constraintlayout.widget.ConstraintLayout>
+		
+	</FrameLayout>
+	
+	<FrameLayout
+		android:layout_height="match_parent"
+		android:layout_width="match_parent">
+		<AbsoluteLayout
+			android:layout_height="match_parent"
+			android:layout_width="match_parent"
+			android:id="@+id/drag_parent">
+			<SurfaceView
+				android:id="@+id/prev"
+				android:layout_height="200dp"
+				android:layout_width="100dp" />
+		</AbsoluteLayout>
+	</FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
