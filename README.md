@@ -19,7 +19,7 @@
 
 ### 🚧 Active Development
 
-The E2EE hardening pass — new wire protocol, full at-rest encryption, trust-on-first-use pairing — **compiles and runs**, and is now being put through its paces across different devices. This is a fast-moving, pre-release codebase, and that's exactly why it needs you.
+The E2EE hardening pass — new wire protocol, full at-rest encryption, trust-on-first-use pairing — **compiles and runs**, and is now being put through its paces across different devices. This [...]
 
 📦 A built APK will land under **[Releases](../../releases)**.
 🙌 **Contributors are genuinely wanted** — device testers, crypto reviewers, bug hunters, all welcome. Jump to [Contributing](#-contributing).
@@ -44,13 +44,13 @@ The E2EE hardening pass — new wire protocol, full at-rest encryption, trust-on
 
 Every mainstream "private" messenger still routes through someone else's server. That server is a single point of failure — for outages, for breaches, for subpoenas, for shutdowns.
 
-**Eccles BlueChat removes it entirely.** Two phones pair directly over Bluetooth and talk to each other, peer-to-peer, with no third party ever in the loop. If it isn't on one of the two devices, it doesn't exist anywhere.
+**Eccles BlueChat removes it entirely.** Two phones pair directly over Bluetooth and talk to each other, peer-to-peer, with no third party ever in the loop. If it isn't on one of the two devices, [...]
 
 ---
 
 ## 🔐 End-to-End Encryption — The Core of This App
 
-This isn't "encryption as a feature." Encryption *is* the app. Every byte that crosses the Bluetooth link — text, photos, voice, video, calls — is protected by a modern, authenticated protocol built from the ground up for this project.
+This isn't "encryption as a feature." Encryption *is* the app. Every byte that crosses the Bluetooth link — text, photos, voice, video, calls — is protected by a modern, authenticated protocol[...]
 
 ### How a session gets secured
 
@@ -72,11 +72,11 @@ sequenceDiagram
 
 | 🧩 Layer | 🛡️ What protects it |
 |---|---|
-| **Handshake** | Authenticated triple-ECDH (X3DH-style) over P-256, combining a long-term identity key with a fresh ephemeral key every session — giving both **forward secrecy** and **implicit authentication** |
+| **Handshake** | Authenticated triple-ECDH (X3DH-style) over P-256, combining a long-term identity key with a fresh ephemeral key every session — giving both **forward secrecy** and **implicit [...]
 | **Session traffic** | **AES-256-GCM**, independent keys per direction, strictly increasing nonce counters — replayed packets are rejected outright, not just detected |
 | **Message integrity** | GCM's own authentication tag *is* the tamper check — no bolted-on checksum, no weaker legacy fallback |
 | **Identity keys** | Generated once per install, wrapped by an **AndroidKeystore**-backed AES-GCM key, stored outside backup/restore entirely |
-| **Peer trust** | **Trust-on-first-use** fingerprint pinning — the same MITM-detection model used by Signal and SSH. If a contact's fingerprint ever changes, you get an explicit warning *before* anything reconnects |
+| **Peer trust** | **Trust-on-first-use** fingerprint pinning — the same MITM-detection model used by Signal and SSH. If a contact's fingerprint ever changes, you get an explicit warning *before[...]
 | **At-rest storage** | Messages **and** every piece of media (photos, voice notes, video) individually encrypted on disk with AndroidKeystore-backed AES-256-GCM keys |
 | **Decrypted cache** | Media is only ever decrypted into a **non-backed-up, cache-only** temp copy for viewing/playback — and that cache is wiped on every app start |
 
@@ -87,7 +87,7 @@ sequenceDiagram
 - 🚨 **Active tampering is detected, not silently accepted.** Both in-transit (GCM auth tags) and long-term (fingerprint pinning).
 - 💾 **A stolen or seized phone doesn't hand over your chat history.** Everything on disk is encrypted at rest, keyed to that device's Keystore.
 
-> ⚠️ **Honesty matters here.** This is hand-rolled protocol code. It has not yet had an independent cryptography review. It's built carefully and modeled on well-understood constructions (X3DH, AES-GCM), but "carefully built" isn't a substitute for a second set of expert eyes — see [Contributing](#-contributing) if that's you. Full technical detail on this pass, including every bug found and fixed, lives in [`CHANGES.md`](CHANGES.md).
+> ⚠️ **Honesty matters here.** This is hand-rolled protocol code. It has not yet had an independent cryptography review. It's built carefully and modeled on well-understood constructions (X3DH[...]
 
 ---
 
@@ -167,7 +167,7 @@ app/src/main/java/starking/eccles/
 
 ## 🤝 Contributing
 
-Big or small, contributions help. Device testing and cryptography review are the highest-leverage things you can offer right now — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to get started.
+Big or small, contributions help. Device testing and cryptography review are the highest-leverage things you can offer right now — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to get starte[...]
 
 ---
 
