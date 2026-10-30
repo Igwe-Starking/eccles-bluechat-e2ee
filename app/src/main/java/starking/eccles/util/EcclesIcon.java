@@ -30,6 +30,92 @@ public class EcclesIcon {
 		return d;
 	}
 
+	/** Profile pictures are stored and sent as this size (px, square). Small on purpose: a
+	 *  256x256 JPEG is typically 10-30 KB, so it crosses Bluetooth in a moment and never
+	 *  delays chats or calls, however large the original photo was. */
+	public static final int ICON_SIZE= 256;
+	private static final int ICON_MAX_BYTES= 60_000;
+
+	/**
+	 * Turns ANY photo (a 12 MP camera picture, a huge gallery image) into a small square profile
+	 * picture ready to store and send: decoded at reduced size (so a big photo never exhausts
+	 * memory), rotated upright using its EXIF tag, centre-cropped to a square, scaled to
+	 * {@link #ICON_SIZE} and JPEG-compressed. Returns null only if the file isn't a readable image.
+	 */
+	public static byte[] prepareIcon(Context c,android.net.Uri u){
+		try{
+			BitmapFactory.Options bounds= new BitmapFactory.Options();
+			bounds.inJustDecodeBounds= true;
+			try(java.io.InputStream in= c.getContentResolver().openInputStream(u)){
+				BitmapFactory.decodeStream(in,null,bounds);
+			}
+			if(bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+
+			int sample= 1;
+			int shortest= Math.min(bounds.outWidth,bounds.outHeight);
+			while(shortest/(sample*2) >= ICON_SIZE*2) sample*= 2;
+
+			BitmapFactory.Options opts= new BitmapFactory.Options();
+			opts.inSampleSize= sample;
+			Bitmap decoded;
+			try(java.io.InputStream in= c.getContentResolver().openInputStream(u)){
+				decoded= BitmapFactory.decodeStream(in,null,opts);
+			}
+			if(decoded == null) return null;
+
+			int degrees= 0;
+			if(android.os.Build.VERSION.SDK_INT >= 24){
+				try(java.io.InputStream in= c.getContentResolver().openInputStream(u)){
+					int o= new android.media.ExifInterface(in).getAttributeInt(
+							android.media.ExifInterface.TAG_ORIENTATION,android.media.ExifInterface.ORIENTATION_NORMAL);
+					if(o == android.media.ExifInterface.ORIENTATION_ROTATE_90) degrees= 90;
+					else if(o == android.media.ExifInterface.ORIENTATION_ROTATE_180) degrees= 180;
+					else if(o == android.media.ExifInterface.ORIENTATION_ROTATE_270) degrees= 270;
+				} catch(Exception ignored){}
+			}
+			if(degrees != 0){
+				android.graphics.Matrix m= new android.graphics.Matrix();
+				m.postRotate(degrees);
+				Bitmap rotated= Bitmap.createBitmap(decoded,0,0,decoded.getWidth(),decoded.getHeight(),m,true);
+				if(rotated != decoded) decoded.recycle();
+				decoded= rotated;
+			}
+			return prepareIcon(decoded);
+		} catch(Throwable t){
+			android.util.Log.e("EcclesIcon","prepareIcon failed",t);
+			return null;
+		}
+	}
+
+	/** Same as {@link #prepareIcon(Context, android.net.Uri)} for an already-decoded bitmap. */
+	public static byte[] prepareIcon(Bitmap src){
+		if(src == null) return null;
+		try{
+			int side= Math.min(src.getWidth(),src.getHeight());
+			Bitmap square= Bitmap.createBitmap(src,(src.getWidth()-side)/2,(src.getHeight()-side)/2,side,side);
+			Bitmap scaled= Bitmap.createScaledBitmap(square,ICON_SIZE,ICON_SIZE,true);
+			if(scaled.hasAlpha()){
+				// JPEG has no transparency - put the picture on white instead of black.
+				Bitmap flat= Bitmap.createBitmap(ICON_SIZE,ICON_SIZE,Bitmap.Config.ARGB_8888);
+				android.graphics.Canvas cv= new android.graphics.Canvas(flat);
+				cv.drawColor(android.graphics.Color.WHITE);
+				cv.drawBitmap(scaled,0,0,null);
+				scaled= flat;
+			}
+			byte[] out= null;
+			for(int q: new int[]{85,70,55,40}){
+				ByteArrayOutputStream bos= new ByteArrayOutputStream();
+				scaled.compress(Bitmap.CompressFormat.JPEG,q,bos);
+				out= bos.toByteArray();
+				if(out.length <= ICON_MAX_BYTES) break;
+			}
+			return out;
+		} catch(Throwable t){
+			android.util.Log.e("EcclesIcon","prepareIcon failed",t);
+			return null;
+		}
+	}
+
 	public static byte[] convertToBytes(Bitmap b){
 
 		if(b != null){

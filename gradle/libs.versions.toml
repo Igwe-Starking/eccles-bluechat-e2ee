@@ -1,5 +1,5 @@
 [versions]
-agp = "7.4.1"
+agp = "8.9.2"
 junit = "4.13.2"
 mockitoCore = "5.11.0"
 robolectric = "4.12.2"
@@ -26,6 +26,7 @@ lifecycleLivedata = "2.6.2"
 lifecycleViewmodel = "2.6.2"
 lifecycleService = "2.6.2"
 collection = "1.3.0"
+biometric = "1.1.0"
 
 [libraries]
 appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
@@ -46,6 +47,7 @@ lifecycle-livedata = { group = "androidx.lifecycle", name = "lifecycle-livedata"
 lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "lifecycleViewmodel" }
 lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-service", version.ref = "lifecycleService" }
 collection = { group = "androidx.collection", name = "collection", version.ref = "collection" }
+biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockitoCore" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }

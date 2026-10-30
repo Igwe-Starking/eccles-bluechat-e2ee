@@ -1,23 +1,24 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-	android:layout_marginVertical="10dp"
-	android:layout_marginBottom="20dp"
+    android:layout_height="wrap_content"
+	android:paddingLeft="14dp"
+	android:paddingRight="14dp"
+	android:paddingTop="10dp"
 	android:paddingBottom="10dp"
-    android:layout_height="wrap_content">
+	android:background="?android:attr/selectableItemBackground">
 	
 	<ImageView
-		android:layout_width="40dp"
-		android:layout_height="40dp"
-		android:layout_marginRight="5dp"
+		android:layout_width="52dp"
+		android:layout_height="52dp"
 		app:layout_constraintLeft_toLeftOf="parent"
 		app:layout_constraintTop_toTopOf="parent"
 		app:layout_constraintBottom_toBottomOf="parent"
 		android:id="@+id/profile_icon" />
 		
 	<FrameLayout
-		android:layout_height="40dp"
-		android:layout_width="40dp"
+		android:layout_height="52dp"
+		android:layout_width="52dp"
 		app:layout_constraintLeft_toLeftOf="@+id/profile_icon"
 		app:layout_constraintRight_toRightOf="@+id/profile_icon"
 		app:layout_constraintTop_toTopOf="@+id/profile_icon"
@@ -39,54 +40,57 @@
 		
 	<TextView
 		android:layout_height="wrap_content"
-		android:layout_width="wrap_content"
+		android:layout_width="0dp"
 		android:textStyle="bold"
-		android:textSize="20sp"
+		android:textSize="17sp"
 		android:maxLines="1"
-		android:singleLine="true"
+		android:ellipsize="end"
+		android:layout_marginLeft="14dp"
+		android:layout_marginRight="8dp"
 		app:layout_constraintLeft_toRightOf="@+id/profile_icon"
 		app:layout_constraintRight_toLeftOf="@+id/signal"
 		app:layout_constraintTop_toTopOf="parent"
-		android:textColor="?attr/colorPrimaryVariant"
+		android:textColor="@color/row_title"
 		android:id="@+id/title" />
 	
 	<TextView
 		android:id="@+id/message"
 		android:layout_height="wrap_content"
-		android:layout_width="wrap_content"
+		android:layout_width="0dp"
 		android:maxLines="1"
-		android:singleLine="true"
-		android:layout_marginLeft="10dp"
-		android:textColor="#2b2"
-		app:layout_constraintLeft_toLeftOf="@+id/profile_icon"
+		android:ellipsize="end"
+		android:textSize="14sp"
+		android:layout_marginLeft="14dp"
+		android:layout_marginRight="8dp"
+		android:textColor="@color/row_message"
+		app:layout_constraintLeft_toRightOf="@+id/profile_icon"
 		app:layout_constraintRight_toLeftOf="@+id/signal"
 		app:layout_constraintTop_toBottomOf="@+id/title" />
 		
 	<TextView
 		android:id="@+id/status"
-		android:textAlignment="center"
-		android:gravity="center"
+		android:gravity="start"
 		android:maxLines="1"
-		android:singleLine="true"
-		android:textSize="10sp"
-		android:layout_marginLeft="10dp"
-		android:textColor="#55e"
+		android:ellipsize="end"
+		android:textSize="12sp"
+		android:layout_marginLeft="14dp"
+		android:layout_marginRight="8dp"
+		android:textColor="@color/row_meta"
 		android:layout_height="wrap_content"
-		android:layout_width="wrap_content"
+		android:layout_width="0dp"
 		app:layout_constraintTop_toBottomOf="@+id/message"
-		app:layout_constraintLeft_toLeftOf="@+id/profile_icon"
+		app:layout_constraintLeft_toRightOf="@+id/profile_icon"
 		app:layout_constraintRight_toLeftOf="@+id/signal" />
 		
 	<ImageView
 		android:id="@+id/signal"
-		android:layout_height="30dp"
-		android:layout_width="30dp"
+		android:layout_height="28dp"
+		android:layout_width="28dp"
 		android:visibility="invisible"
 		android:src="@drawable/signal_drawable"
 		app:layout_constraintRight_toRightOf="parent"
 		app:layout_constraintTop_toTopOf="parent"
-		app:layout_constraintBottom_toBottomOf="parent"
-		android:layout_margin="3dp" />
+		app:layout_constraintBottom_toBottomOf="parent" />
 
 	<FrameLayout
 		android:layout_height="30dp"
@@ -110,6 +114,5 @@
 	
 		</androidx.constraintlayout.widget.ConstraintLayout>
 	</FrameLayout>
-	
 
 </androidx.constraintlayout.widget.ConstraintLayout>

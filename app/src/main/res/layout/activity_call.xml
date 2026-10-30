@@ -35,6 +35,30 @@
 		android:visibility="gone"
 		android:textSize="10sp" />
 		
+	<!-- Hidden until the call is actually accepted/ongoing (CallActivity shows it then).
+		 Anchored to the parent's bottom with a fixed margin, NOT to accept_bt: once a call
+		 connects, CallActivity#slideIn() sets accept_bt to GONE and slides reject_bt to the
+		 middle with a translation. A GONE view collapses to a point at its own constraint
+		 position (bottom-right corner here), so a bottom-to-top-of-accept_bt constraint put
+		 this button down at the screen's bottom edge, right behind the end-call button -
+		 the overlap in the screenshot. 120dp clears the 56dp end-call button plus its 15dp
+		 margins with room to spare, and it's centered horizontally like the end-call button
+		 becomes. -->
+	<com.google.android.material.floatingactionbutton.FloatingActionButton
+		android:layout_height="wrap_content"
+		android:layout_width="wrap_content"
+		android:id="@+id/speaker_bt"
+		app:fabSize="mini"
+		app:layout_constraintLeft_toLeftOf="parent"
+		app:layout_constraintRight_toRightOf="parent"
+		app:layout_constraintBottom_toBottomOf="parent"
+		android:layout_marginBottom="120dp"
+		android:src="@drawable/ic_speaker"
+			app:backgroundTint="#888888"
+			app:tint="@color/white"
+		android:contentDescription="Toggle speaker"
+		android:visibility="gone" />
+
 	<com.google.android.material.floatingactionbutton.FloatingActionButton
 		android:layout_height="wrap_content"
 		android:layout_width="wrap_content"
@@ -42,7 +66,7 @@
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintRight_toRightOf="parent"
 		android:layout_margin="15dp"
-		app:backgroundTint="#3e3"
+		app:backgroundTint="@color/call_accept"
 		android:src="@drawable/ic_call"
 		android:rotation="90" />
 		
@@ -51,7 +75,7 @@
 		android:layout_width="wrap_content"
 		android:layout_margin="15dp"
 		android:id="@+id/reject_bt"
-		app:backgroundTint="#e33"
+		app:backgroundTint="@color/danger"
 		app:layout_constraintLeft_toLeftOf="parent"
 		app:layout_constraintBottom_toBottomOf="parent"
 		android:src="@drawable/ic_call"

@@ -1,6 +1,5 @@
 package starking.eccles.bluechat.ui;
 
-import androidx.arch.core.util.Function;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Transformations;
@@ -14,11 +13,10 @@ public class FragmentViewModel extends ViewModel {
 	public FragmentViewModel(){
 
 		liveData= new MutableLiveData();
-		data= Transformations.map(liveData,new Function<EcclesAdapter,EcclesAdapter>(){
-			public EcclesAdapter apply(EcclesAdapter adapter){
-				return adapter;
-			}
-		});
+		// Transformations.map() now takes a Kotlin Function1<X,Y> (from lifecycle-livedata-core-ktx)
+		// instead of the old androidx.arch.core.util.Function. Function1 is still a single-abstract-
+		// method interface under the hood, so a plain Java lambda satisfies it via SAM conversion.
+		data= Transformations.map(liveData, adapter -> adapter);
 
 	}
 }

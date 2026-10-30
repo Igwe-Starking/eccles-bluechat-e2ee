@@ -2,62 +2,49 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-	android:gravity="center_horizontal"
-	android:textAlignment="center"
-    android:orientation="vertical">
+	android:fillViewport="true">
 	
 	<LinearLayout
-		android:layout_height="match_parent"
+		android:layout_height="wrap_content"
 		android:layout_width="match_parent"
-		android:textAlignment="center"
-		android:gravity="center"
+		android:gravity="center_horizontal"
+		android:padding="20dp"
 		android:orientation="vertical">
 	
-	<TextView
-		android:layout_height="wrap_content"
-		android:layout_width="wrap_content"
-		android:textSize="25sp"
-		android:textStyle="bold"
-		android:textAlignment="center"
-		android:text="Eccles Bluechat:"
-		android:textColor="#33a" />
-		
-	<TextView
-		android:layout_height="wrap_content"
-		android:layout_width="match_parent"
-		android:textSize="16sp"
-		android:textColor="#111"
-		android:textAlignment="center"
-		android:text="This app is solely ment for chatting,calling and video calling using android bluetooth technology\n
-		bluetooth consumes battery so by default this app
-		does'nt automatically start,to use the functionalities of this app bluetooth must be enabled
-		if you intend to scan for devices using this app then location permission must be granted\n
-		Eccles never access ur location using this app,so the location permission is solely used to discover devices\n
-		if you intend to send images,audios or videos through this app you must grant storage permission which will be requested by this app,
-		microphone permission is neccessary to record and send voice notes\n
-		if you are using android 10 or higher be sure to grant manage all files permission in Settings->apps->Eccles Bluechat->permissions->Manage All files, this is nessary if you want to view your received files outside this app\n
-		if you did not grant any of these permissions trying to use their feature can lead to undesirable behavior of this app,
-		make sure to use the exit option in the options menu located at the top right conner of this app when you are done using this app,
-		this is neccessary to optimse system resources held by this app,
-		if you encountered any problem while using this app refer to the app settings->report and send your feedback to Eccles,
-		Eccles will do their best to make sure your problem is resolved\n
-		for more information on how to use this app refer to the app help in the apps options menu located in the top right conner of this app." />
-	
-	<TextView
-		android:layout_height="wrap_content"
-		android:layout_width="match_parent"
-		android:textSize="25sp"
-		android:textStyle="bold"
-		android:textAlignment="center"
-		android:textColor="#33a"
-		android:text="Developer Info:" />
-	<TextView
-		android:layout_height="wrap_content"
-		android:layout_width="match_parent"
-		android:textAlignment="center"
-		android:textColor="#111"
-		android:textSize="16sp"
-		android:text="@string/dev_info" />
+		<TextView
+			android:layout_height="wrap_content"
+			android:layout_width="wrap_content"
+			android:textSize="24sp"
+			android:textStyle="bold"
+			android:textColor="@color/section_title"
+			android:text="About Eccles Bluechat" />
 
-</LinearLayout>
+		<TextView
+			android:layout_height="wrap_content"
+			android:layout_width="match_parent"
+			android:layout_marginTop="14dp"
+			android:textSize="15sp"
+			android:lineSpacingMultiplier="1.15"
+			android:textColor="@color/text_primary"
+			android:text="Eccles Bluechat lets you chat, make voice calls and make video calls over Bluetooth, with no internet connection needed.\n\nBluetooth uses battery power, so the app does not start it automatically by default. Turn Bluetooth on before you use the app.\n\nPermissions\n• Location: only used to discover nearby devices. Bluechat never reads your location.\n• Storage: needed to send and save images, audio and video.\n• Microphone: needed for voice notes and calls.\n• Camera: needed for photos and video calls.\n\nOn Android 10 or higher, grant \u201cAllow management of all files\u201d in Settings \u2192 Apps \u2192 Eccles Bluechat \u2192 Permissions if you want to open received files outside this app.\n\nIf you skip a permission, the feature that needs it may not work properly.\n\nWhen you have finished, choose Exit from the options menu (top right) so the app releases the resources it is using.\n\nIf you run into a problem, open Settings \u2192 Send Feedback and tell us about it. We will do our best to fix it. For more help on using the app, open Help from the options menu." />
+	
+		<TextView
+			android:layout_height="wrap_content"
+			android:layout_width="match_parent"
+			android:layout_marginTop="28dp"
+			android:textSize="24sp"
+			android:textStyle="bold"
+			android:textColor="@color/section_title"
+			android:text="Developer" />
+
+		<TextView
+			android:layout_height="wrap_content"
+			android:layout_width="match_parent"
+			android:layout_marginTop="14dp"
+			android:textColor="@color/text_primary"
+			android:textSize="15sp"
+			android:lineSpacingMultiplier="1.15"
+			android:text="@string/dev_info" />
+
+	</LinearLayout>
 </ScrollView>

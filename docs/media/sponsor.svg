@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 440" width="1280" height="440" role="img" aria-label="Support Eccles Bluechat: help me get a real laptop and a Google Play developer account">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b0b2e"/><stop offset="0.6" stop-color="#3a0f4a"/><stop offset="1" stop-color="#5a1646"/></linearGradient>
+    <linearGradient id="btn" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff5fa2"/><stop offset="1" stop-color="#ff8a4c"/></linearGradient>
+    <radialGradient id="g" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ff5fa2" stop-opacity="0.5"/><stop offset="1" stop-color="#ff5fa2" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1280" height="440" rx="28" fill="url(#bg)"/>
+  <circle cx="1030" cy="215" r="300" fill="url(#g)"><animate attributeName="opacity" values="0.7;1;0.7" dur="3s" repeatCount="indefinite"/></circle>
+  <g font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif">
+    <text x="80" y="92" font-size="28" font-weight="700" fill="#ffb3d1" letter-spacing="2">SUPPORT THE BUILD</text>
+    <text x="80" y="170" font-size="60" font-weight="800" fill="#ffffff" letter-spacing="-1">One Chromebook.</text>
+    <text x="80" y="236" font-size="60" font-weight="800" fill="#ffd1e3" letter-spacing="-1">Zero Play Store account.</text>
+    <text x="80" y="290" font-size="25" fill="#e6d3ee">12,000+ lines of Java, 96 tests, built by one student developer.</text>
+  </g>
+  <g font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="21" font-weight="700">
+    <g transform="translate(80 328)"><rect width="190" height="50" rx="25" fill="#ffffff" fill-opacity="0.1" stroke="#ffffff" stroke-opacity="0.25"/><text x="95" y="32" text-anchor="middle" fill="#ffe3ef">Real laptop</text></g>
+    <g transform="translate(284 328)"><rect width="250" height="50" rx="25" fill="#ffffff" fill-opacity="0.1" stroke="#ffffff" stroke-opacity="0.25"/><text x="125" y="32" text-anchor="middle" fill="#ffe3ef">Google Play account</text></g>
+    <g transform="translate(548 328)"><rect width="220" height="50" rx="25" fill="#ffffff" fill-opacity="0.1" stroke="#ffffff" stroke-opacity="0.25"/><text x="110" y="32" text-anchor="middle" fill="#ffe3ef">Keep shipping</text></g>
+  </g>
+  <g transform="translate(810 118)">
+    <rect width="420" height="104" rx="52" fill="url(#btn)"><animate attributeName="opacity" values="1;0.85;1" dur="2.4s" repeatCount="indefinite"/></rect>
+    <text x="210" y="65" text-anchor="middle" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="31" font-weight="800" fill="#2a0a1a">Support via Paystack</text>
+  </g>
+  <text x="1020" y="270" text-anchor="middle" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="20" fill="#f3dcea">paystack.shop/pay/support-bluechat-t1</text>
+  <text x="1020" y="304" text-anchor="middle" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="18" fill="#d9b9cc">Any amount helps. Thank you.</text>
+</svg>

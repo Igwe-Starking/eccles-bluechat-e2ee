@@ -3,7 +3,6 @@ package starking.eccles.bluechat.service;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Handler;
 import android.util.Log;
 
@@ -63,7 +62,7 @@ public class Reader {
 	@SuppressLint({"MissingPermission", "NewApi"})
 	private String safeDeviceName(BluetoothSocket socket){
 		try{
-			return socket.getRemoteDevice().getName();
+			return starking.eccles.util.PeerStore.displayName(socket.getRemoteDevice());
 		} catch (Exception e){
 			return "unknown device";
 		}
@@ -178,7 +177,12 @@ public class Reader {
 		}catch(Exception e){ Log.e("Eccles","Unable to validate Bluetooth peer",e); return; }
 		switch (m.type){
 			case EcclesMessage.TYPE_CHAT:
-				ClassicCompat.newUnread(app,s.getRemoteDevice().getAddress());
+				// A message that arrives while its own chat is open on screen is seen right away -
+				// counting it would leave a stale unread badge that only cleared on the next visit.
+				boolean viewingChat= EcclesActivity.isAppInForeground() && app.currentActivity instanceof ChatActivity
+						&& ((ChatActivity)app.currentActivity).device != null
+						&& ((ChatActivity)app.currentActivity).device.getAddress().equals(s.getRemoteDevice().getAddress());
+				if(!viewingChat) ClassicCompat.newUnread(app,s.getRemoteDevice().getAddress());
 				registerUnread(s.getRemoteDevice().getAddress());
 				if(m.subtype != EcclesMessage.SUBTYPE_TEXT){
 					String path= EcclesStorage.getDir(m.data,app.address!=null && app.address.equals(m.sender),app,m.subtype);
@@ -193,8 +197,13 @@ public class Reader {
 					}
 					m.setData(path.getBytes());
 				}
-				app.chatStore.insert(ClassicCompat.purifyAddress(s.getRemoteDevice().getAddress()),null,m);
-						if(!app.chatBase.insert(s.getRemoteDevice(),getMessage(m,app))){
+				m.setStoreId(app.chatStore.insertRow(ClassicCompat.purifyAddress(s.getRemoteDevice().getAddress()),null,m));
+						// getPreview(), not getMessage(): the Chats tab's list preview is only
+						// ever seen inside the already-unlocked, already-open app, unlike
+						// getMessage()'s deliberately generic lock-screen notification text, so
+						// showing the actual latest message here (what every other messenger
+						// does) isn't the privacy problem it would be on the lock screen.
+						if(!app.chatBase.insert(s.getRemoteDevice(),getPreview(m,app))){
 							updateMessage(m);
 						}
 
@@ -209,12 +218,11 @@ public class Reader {
 			case EcclesMessage.TYPE_CALL:
 
 				if(m.subtype==EcclesMessage.SUBTYPE_CALL_REQUEST){
-				Intent in= new Intent(app,CallActivity.class);
-
-				in.putExtra("device",s.getRemoteDevice());
-				in.putExtra("type",CallActivity.TYPE_RECEIVE);
-				in.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-				app.startActivity(in);
+				// See EcclesNotifier#notifyIncomingCall's doc: a direct startActivity() here is
+				// silently blocked by Android whenever the app is backgrounded, which was the
+				// entire reason calls never rang/showed anything unless the app happened to
+				// already be open.
+				EcclesNotifier.notifyIncomingCall(app,s.getRemoteDevice(),false);
 				} else if(m.subtype==EcclesMessage.SUBTYPE_CALL_ACCEPTED){
 					if(!verifyActivity(CallActivity.TYPE_ACCEPTED)){
 
@@ -235,12 +243,7 @@ public class Reader {
 				break;
 			case EcclesMessage.TYPE_VIDEO:
 				if(m.subtype==EcclesMessage.SUBTYPE_CALL_REQUEST){
-					Intent in1= new Intent(app,VideoActivity.class);
-
-					in1.putExtra("device",s.getRemoteDevice());
-					in1.putExtra("type",CallActivity.TYPE_RECEIVE);
-					in1.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-					app.startActivity(in1);
+					EcclesNotifier.notifyIncomingCall(app,s.getRemoteDevice(),true);
 					} else if(m.subtype==EcclesMessage.SUBTYPE_CALL_ACCEPTED){
 					if(!postCall(CallActivity.TYPE_ACCEPTED)){
 
@@ -259,6 +262,13 @@ public class Reader {
 				break;
 			case EcclesMessage.TYPE_ICON:
 				ClassicCompat.saveDeviceIcon(s.getRemoteDevice().getAddress(),m.data,app);
+				if(app.currentActivity != null) app.currentActivity.onPeerProfileChanged(s.getRemoteDevice().getAddress());
+				break;
+			case EcclesMessage.TYPE_PROFILE:
+				if(starking.eccles.util.PeerStore.saveAnnounced(s.getRemoteDevice().getAddress(),m.data)
+						&& app.currentActivity != null){
+					app.currentActivity.onPeerProfileChanged(s.getRemoteDevice().getAddress());
+				}
 				break;
 		}
 
@@ -268,19 +278,51 @@ public class Reader {
 
 		EcclesActivity activity= app.currentActivity;
 		if(activity==null) return;
-		activity.onDisconnected(s.getRemoteDevice());
+		activity.runOnUiThread(()->{
+			activity.onDisconnected(s.getRemoteDevice());
+		});
+
 		if(activity instanceof SelectActivity){
-			((SelectActivity) activity).processDisconnect(s.getRemoteDevice());
+			activity.runOnUiThread(()->{
+				((SelectActivity) activity).processDisconnect(s.getRemoteDevice());
+			});
+
 		} else if(activity instanceof ChatActivity){
-			((ChatActivity) activity).performDisconnect(s.getRemoteDevice());
+			activity.runOnUiThread(()->{
+				((ChatActivity) activity).performDisconnect(s.getRemoteDevice());
+			});
+
 		}
 	}
 
 	public void updateMessage(EcclesMessage m){
 		EcclesData data= app.chatBase;
 
-		if(!data.updateNewMessage(m.sender,getMessage(m,app))){
+		if(!data.updateNewMessage(m.sender,getPreview(m,app))){
 			Log.w("Eccles","failed to update new msg from");
+		}
+	}
+
+	/**
+	 * Builds the Chats-tab list preview text for an incoming message - this is only ever shown
+	 * inside the app itself (after the user has already unlocked their phone and opened
+	 * Bluechat), unlike {@link #getMessage}'s lock-screen notification text, so unlike that one
+	 * this can safely show the actual latest message instead of a generic placeholder. Mirrors
+	 * {@code ChatActivity#getSent}, which already does the equivalent for messages sent from
+	 * this device.
+	 */
+	public static String getPreview(EcclesMessage m,Context c){
+		switch (m.subtype){
+			case EcclesMessage.SUBTYPE_TEXT:
+				return m.data == null ? "" : new String(m.data,java.nio.charset.StandardCharsets.UTF_8).replaceAll("\\s+"," ").trim();
+			case EcclesMessage.SUBTYPE_AUDIO:
+				return "\uD83C\uDFA4 Voice message";
+			case EcclesMessage.SUBTYPE_IMAGE:
+				return "\uD83D\uDCF7 Photo";
+			case EcclesMessage.SUBTYPE_VIDEO:
+				return "\uD83D\uDCF9 Video";
+			default:
+				return null;
 		}
 	}
 
@@ -297,21 +339,21 @@ public class Reader {
 	 */
 	public static String getMessage(EcclesMessage m,Context c){
 
-		@SuppressLint("MissingPermission") String d="device";
+		@SuppressLint("MissingPermission") String d="Someone nearby";
 		try {
 			android.bluetooth.BluetoothDevice device=((EcclesApplication)c.getApplicationContext()).adapter.getRemoteDevice(m.sender);
-			if(device!=null && device.getName()!=null) d=device.getName();
+			if(device!=null) d=starking.eccles.util.PeerStore.displayName(device);
 		} catch(Exception ignored) {}
 
 		switch (m.subtype){
 			case EcclesMessage.SUBTYPE_AUDIO:
-			return "New Audio from "+d;
+			return d+" sent you a voice message";
 			case EcclesMessage.SUBTYPE_IMAGE:
-			return "New Image from "+d;
+			return d+" sent you a photo";
 			case EcclesMessage.SUBTYPE_TEXT:
 			return "New message from "+d;
 			case EcclesMessage.SUBTYPE_VIDEO:
-			return "New Video from "+d;
+			return d+" sent you a video";
 			default:
 			return null;
 		}
@@ -339,7 +381,8 @@ public class Reader {
 	public void registerUnread(String add){
 		EcclesActivity act= app.currentActivity;
 		if(act instanceof MajorActivity){
-			((MajorActivity)act).fragment.checkUnread(add);
+			if(((MajorActivity)act).fragment != null) ((MajorActivity)act).fragment.checkUnread(add);
+			((MajorActivity)act).checkStatus();
 		}
 	}
 

@@ -235,11 +235,16 @@ public class ChatBase extends SQLiteOpenHelper {
      * @return true if the row was inserted, false on failure (including a null message).
      */
     public boolean insert(String name, String status, EcclesMessage message) {
+        return insertRow(name, status, message) != -1;
+    }
+
+    /** @return the new row id, or -1 if the message could not be stored. */
+    public long insertRow(String name, String status, EcclesMessage message) {
         if (message == null) {
-            return false;
+            return -1;
         }
         ContentValues values = new ContentValues();
-        values.put(COLUMN_CONVERSATION, key(message.sender != null ? message.sender : name));
+        values.put(COLUMN_CONVERSATION, message.sender != null ? key(message.sender) : name);
         values.put(COLUMN_SENDER, message.sender);
         values.put(COLUMN_RECIPIENT, message.to);
         values.put(COLUMN_TYPE, message.subtype);
@@ -259,7 +264,7 @@ public class ChatBase extends SQLiteOpenHelper {
                 // reduced to nothing, with the caller believing it was saved. A crypto failure
                 // must propagate as an insert failure, never as a successful empty message.
                 android.util.Log.e("ChatBase", "insert: at-rest encryption failed, refusing to store an empty row", e);
-                return false;
+                return -1;
             }
         }
         if (encrypted != null) {
@@ -274,10 +279,10 @@ public class ChatBase extends SQLiteOpenHelper {
         }
 
         try {
-            return getWritableDatabase().insert(TABLE, null, values) != -1;
+            return getWritableDatabase().insert(TABLE, null, values);
         } catch (Exception e) {
             android.util.Log.e("ChatBase", "insert", e);
-            return false;
+            return -1;
         }
     }
 
@@ -359,8 +364,14 @@ public class ChatBase extends SQLiteOpenHelper {
         }
     }
 
-    public void clear(String address) {
-        getWritableDatabase().delete(TABLE, COLUMN_CONVERSATION + "=?", new String[]{key(address)});
+    /** @return true if at least one row was actually deleted, false if nothing matched or an error occurred. */
+    public boolean clear(String address) {
+        try {
+            return getWritableDatabase().delete(TABLE, COLUMN_CONVERSATION + "=?", new String[]{key(address)}) > 0;
+        } catch (Exception e) {
+            android.util.Log.e("ChatBase", "clear", e);
+            return false;
+        }
     }
 
     /** @return true if a row was actually updated, false if nothing matched or an error occurred. */

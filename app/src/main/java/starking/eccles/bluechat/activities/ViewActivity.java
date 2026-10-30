@@ -11,9 +11,12 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.MediaController;
+import android.widget.Toast;
 import android.widget.VideoView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import starking.eccles.bluechat.R;
 import starking.eccles.bluechat.bclassic.ClassicCompat;
+import starking.eccles.data.EcclesStorage;
 
 public class ViewActivity extends EcclesOptions {
 
@@ -40,13 +43,30 @@ public class ViewActivity extends EcclesOptions {
 
 			case VIEW_IMAGE:
 				viewImage(getIntent().getData());
+				setupDownload(getIntent().getData(),"jpg","image/jpeg");
 				break;
 			case VIEW_VIDEO:
 				viewVideo(getIntent().getData());
+				setupDownload(getIntent().getData(),"mp4","video/mp4");
 				break;
 			case VIEW_PROFILE:
 				viewProfile(getIntent().getStringExtra("address"));
 		}
+	}
+
+	/** Download only ever shows up here, not inline in ChatActivity's chat bubbles - and not at
+	 *  all for VIEW_PROFILE, which this is simply never called for (there's nothing meaningful
+	 *  to "download" about a contact's icon). */
+	private void setupDownload(Uri source,String extension,String mimeType){
+		FloatingActionButton download= findViewById(R.id.download);
+		if(source == null || download == null) return;
+		download.setVisibility(View.VISIBLE);
+		download.setOnClickListener(v-> {
+			String name= EcclesStorage.getDisplayName(this,source);
+			if(!name.contains(".")) name= name+"."+extension;
+			Uri saved= EcclesStorage.saveToDownloads(this,source,name,mimeType);
+			Toast.makeText(this,saved != null ? "Saved to Downloads" : "Failed to save file",Toast.LENGTH_SHORT).show();
+		});
 	}
 
 	private void viewImage(Uri u){

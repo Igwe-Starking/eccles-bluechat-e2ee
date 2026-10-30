@@ -24,6 +24,7 @@ import starking.eccles.bluechat.R;
 import starking.eccles.bluechat.SelectActivity;
 import starking.eccles.bluechat.bclassic.ClassicCompat;
 import starking.eccles.bluechat.ui.MainFragment;
+import starking.eccles.bluechat.ui.ProfileDialog;
 import starking.eccles.util.EcclesIcon;
 import starking.eccles.util.FriendlyDate;
 
@@ -105,7 +106,7 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         }
         if (viewType == VIEW_TYPE_SEARCH_HINT) {
             View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.header_view, parent, false);
-            v.setBackgroundColor(ContextCompat.getColor(parent.getContext(), R.color.main));
+            v.setBackgroundColor(0x3700B3/*ContextCompat.getColor(parent.getContext(), R.color.main)*/);
             return new SearchHintViewHolder(v);
         }
         View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.pojo_view, parent, false);
@@ -314,28 +315,24 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         void bind(EcclesPojo pojo) {
             // Every mutable visual property is reset to a known baseline before applying
             // pojo-specific overrides below. This is essential now that itemView is recycled:
-            // without it, a row could visibly (and confusingly) carry over e.g. a red "blocked"
+            // without it, a row could visibly (and confusingly) carry over e.g. a red "Blocked"
             // status color left behind by whatever different pojo last occupied this same View.
             itemView.setTag(pojo.tag);
             profileIcon.setImageDrawable(pojo.image);
             profileIcon.setOnClickListener(v -> new ProfileDialog(pojo).post());
             title.setText(pojo.Title);
             message.setText(pojo.Message);
-            message.setTextColor(Color.parseColor("#22bb22"));
+            message.setTextColor(rc(pojo, R.color.row_meta));
             statusText.setVisibility(View.VISIBLE);
-            statusText.setTextColor(Color.parseColor("#5555ee"));
+            statusText.setTextColor(rc(pojo, R.color.row_meta));
             signal.setVisibility(View.INVISIBLE);
             activeStatus.setImageDrawable(null);
             unreadStatus.setImageDrawable(null);
 
-            if (pojo.rssi == -1) {
-                statusText.setText("Unsupported device");
-                statusText.setTextColor(Color.RED);
-            } else if (pojo.rssi > 0 && pojo.rssi <= 4) {
-                signal.setVisibility(View.VISIBLE);
-                statusText.setText(ClassicCompat.checkOnline(pojo.device) ? "Online" : "Offline");
-                statusText.setTextColor(Color.BLUE);
-                signal.setImageLevel(pojo.rssi);
+            boolean deviceRow = "Paired".equals(pojo.status) || "Available".equals(pojo.status)
+                    || "Active".equals(pojo.status);
+            if (deviceRow && pojo.device != null) {
+                bindDevicePresence(pojo);
             } else if (pojo.status != null) {
                 String[] parts = pojo.status.split("\b");
                 switch (pojo.rssi) {
@@ -343,7 +340,12 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                         signal.setImageDrawable(EcclesIcon.resize(30, 30, R.drawable.ic_chat, pojo.con));
                         signal.setVisibility(View.VISIBLE);
                         message.setText(parts[0]);
-                        message.setTextColor(Color.BLACK);
+                        message.setTextColor(rc(pojo, R.color.row_message));
+                        String draft = starking.eccles.util.DraftStore.get(pojo.con, pojo.tag);
+                        if (draft != null) {
+                            message.setText("Draft: " + draft.replace('\n', ' '));
+                            message.setTextColor(rc(pojo, R.color.danger));
+                        }
                         statusText.setText(FriendlyDate.simplify(parts[1]));
                         bindActive(pojo);
                         bindUnread(pojo);
@@ -351,16 +353,22 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                     case EcclesPojo.CALL_CLIENT:
                         signal.setImageDrawable(EcclesIcon.resize(30, 30, R.drawable.ic_call, pojo.con));
                         signal.setVisibility(View.VISIBLE);
-                        message.setText(FriendlyDate.simplify(parts[1]));
-                        statusText.setVisibility(View.GONE);
+                        message.setText(callLabel(parts[0], "call"));
+                        message.setTextColor(rc(pojo, R.color.row_message));
+                        statusText.setText(FriendlyDate.simplify(parts[1]));
+                        statusText.setTextColor(rc(pojo, R.color.row_meta));
+                        statusText.setVisibility(View.VISIBLE);
                         bindActive(pojo);
                         bindMissed(pojo, parts[0]);
                         break;
                     case EcclesPojo.VIDEO_CLIENT:
                         signal.setImageDrawable(EcclesIcon.resize(30, 30, R.drawable.ic_video_call, pojo.con));
                         signal.setVisibility(View.VISIBLE);
-                        message.setText(FriendlyDate.simplify(parts[1]));
-                        statusText.setVisibility(View.GONE);
+                        message.setText(callLabel(parts[0], "video call"));
+                        message.setTextColor(rc(pojo, R.color.row_message));
+                        statusText.setText(FriendlyDate.simplify(parts[1]));
+                        statusText.setTextColor(rc(pojo, R.color.row_meta));
+                        statusText.setVisibility(View.VISIBLE);
                         bindActive(pojo);
                         bindMissed(pojo, parts[0]);
                         break;
@@ -370,11 +378,57 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
             if (pojo.con instanceof EcclesActivity && pojo.device != null
                     && ((EcclesActivity) pojo.con).block(pojo.device.getAddress(), EcclesActivity.BLOCK_CHECK_BLOCK)) {
-                statusText.setText("blocked");
-                statusText.setTextColor(Color.RED);
+                statusText.setText("Blocked");
+                statusText.setTextColor(rc(pojo, R.color.status_offline_text));
             }
 
             itemView.setOnClickListener(v -> onItemClick(pojo));
+        }
+
+        /** Device-picker rows: green "Online" with a signal bar when the device is running
+         *  Bluechat (or already connected), red "Offline" otherwise. "Not supported" is reserved
+         *  for devices that are clearly not phones/tablets AND are not running Bluechat. */
+        private void bindDevicePresence(EcclesPojo pojo) {
+            EcclesApplication app = (EcclesApplication) pojo.con.getApplicationContext();
+            String address = pojo.device.getAddress();
+            message.setText(starking.eccles.util.PeerStore.deviceType(pojo.device));
+            boolean connected = app.isConnected(address) || "Active".equals(pojo.status);
+            boolean online = connected || starking.eccles.util.PresenceTracker.isOnline(pojo.device);
+
+            int level = pojo.rssi >= 1 && pojo.rssi <= 4 ? pojo.rssi
+                    : starking.eccles.util.PresenceTracker.signalLevel(address);
+            if (level == 0 && connected) level = 4;   // connected means it is right here
+
+            if (online) {
+                statusText.setText("Online");
+                statusText.setTextColor(rc(pojo, R.color.status_online_text));
+            } else if (pojo.rssi == -1) {
+                statusText.setText("Device not supported");
+                statusText.setTextColor(rc(pojo, R.color.status_offline_text));
+                return;
+            } else {
+                statusText.setText("Offline");
+                statusText.setTextColor(rc(pojo, R.color.status_offline_text));
+            }
+            if (level > 0) {
+                signal.setVisibility(View.VISIBLE);
+                signal.setImageLevel(level);
+            }
+        }
+
+        /** Same layout as a chat row: this label takes the message line, the time goes in the
+         *  small blue status line underneath (it used to replace the message line in green). */
+        private String callLabel(String type, String noun) {
+            switch (type.trim()) {
+                case "1": return "Outgoing " + noun;
+                case "2": return "Incoming " + noun;
+                case "3": return "Missed " + noun;
+                default: return noun.substring(0, 1).toUpperCase() + noun.substring(1);
+            }
+        }
+
+        private int rc(EcclesPojo pojo, int colorRes) {
+            return androidx.core.content.ContextCompat.getColor(pojo.con, colorRes);
         }
 
         private void bindActive(EcclesPojo pojo) {
@@ -386,7 +440,7 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         private void bindUnread(EcclesPojo pojo) {
             int unread = ClassicCompat.queryDeviceUnreads(pojo.con, pojo.tag);
             if (unread > 0) {
-                unreadStatus.setImageDrawable(ClassicCompat.createUnreadBit(pojo.con, String.valueOf(unread), Color.TRANSPARENT, Color.GREEN));
+                unreadStatus.setImageDrawable(ClassicCompat.createUnreadBit(pojo.con, String.valueOf(unread), rc(pojo, R.color.accent), Color.WHITE));
             }
         }
 
@@ -396,7 +450,7 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
         private void onItemClick(EcclesPojo pojo) {
             EcclesApplication app = (EcclesApplication) ((EcclesActivity) pojo.con).getApplication();
-            if ("Active".equals(pojo.status) || app.isConnected(pojo.Message)) {
+            if ("Active".equals(pojo.status) || app.isConnected(pojo.tag)) {
                 if (pojo.con instanceof SelectActivity) {
                     pojo.launch(((SelectActivity) pojo.con).index);
                 }
@@ -415,14 +469,14 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                 default:
             }
 
-            if (pojo.rssi == -1) {
+            if (pojo.rssi == -1 && !starking.eccles.util.PresenceTracker.isOnline(pojo.device)) {
                 ((EcclesActivity) pojo.con).showDialog(
-                        "Bluechat does not recognize this device as an android device\nYou can still try to connect to this device if you insist",
-                        "Connect", "Cancel", null, () -> pojo.connect(pojo.Message), null);
+                        "Bluechat does not recognize this device as an Android device.\nYou can still try to connect to it.",
+                        "Connect", "Cancel", null, () -> pojo.connect(pojo.tag), null);
                 return;
             }
 
-            pojo.connect(pojo.Message);
+            pojo.connect(pojo.tag);
         }
     }
 
@@ -443,7 +497,7 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     /** Row view holder for the "Active Devices" / "Available devices" / "Paired Devices"
      *  section-header rows ({@code avail_head.xml}), used only in the sublisted device list. */
     static class HeaderViewHolder extends RecyclerView.ViewHolder {
-        private static final int DEFAULT_NO_TEXT_COLOR = Color.parseColor("#ff2222");
+        private static final int DEFAULT_NO_TEXT_COLOR = Color.parseColor("#E5484D");
 
         final TextView head;
         final TextView availText;
@@ -458,7 +512,7 @@ public class EcclesAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
 
         void bind(EcclesPojo pojo) {
             head.setText(pojo.headerLabel);
-            head.setTextColor(pojo.headerLabelColor);
+            head.setTextColor(androidx.core.content.ContextCompat.getColor(itemView.getContext(), R.color.section_title));
             availText.setText(pojo.headerSubtitle);
             noText.setText(pojo.headerNoText);
             noText.setTextColor(pojo.headerNoTextColor != -1 ? pojo.headerNoTextColor : DEFAULT_NO_TEXT_COLOR);

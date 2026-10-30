@@ -1,7 +1,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-	android:background="#776"
+	android:background="@color/chat_bg"
     android:layout_height="match_parent">
 	
 	<androidx.appcompat.widget.Toolbar
@@ -13,26 +13,46 @@
 		app:contentInsetStart="0dp"
 		app:contentInsetStartWithNavigation="0dp"
 		app:flow_horizontalGap="0dp"
-		app:layout_constraintTop_toTopOf="parent" />
+		app:layout_constraintTop_toTopOf="parent"
+		android:elevation="4dp" />
 		
+	<!-- Sits outside chat_list (a sibling, not a list row), so unlike anything inside the
+		 RecyclerView this never scrolls away - it's meant to stay put the whole time, the same
+		 way WhatsApp/Signal-style encryption notices do. -->
+	<TextView
+		android:id="@+id/encryption_banner"
+		android:layout_height="wrap_content"
+		android:layout_width="match_parent"
+		android:text="🔒 Chats and calls are end-to-end encrypted"
+		android:textSize="11sp"
+		android:textColor="@color/banner_text"
+		android:gravity="center"
+		android:paddingTop="6dp"
+		android:paddingBottom="6dp"
+		android:paddingStart="12dp"
+		android:paddingEnd="12dp"
+		app:layout_constraintTop_toBottomOf="@+id/chat_tools" />
+
 	<androidx.recyclerview.widget.RecyclerView
 		android:layout_height="0dp"
 		android:layout_width="match_parent"
 		android:id="@+id/chat_list"
 		android:layout_marginTop="10dp"
-		android:paddingTop="30dp"
-		android:paddingBottom="50dp"
+		android:paddingTop="10dp"
+		android:paddingBottom="8dp"
 		android:clipToPadding="false"
-		app:layout_constraintTop_toBottomOf="@+id/chat_tools"
+		app:layout_constraintTop_toBottomOf="@+id/encryption_banner"
 		app:layout_constraintBottom_toTopOf="@+id/input_parent" />
 		
 	<androidx.cardview.widget.CardView
 		android:layout_height="wrap_content"
-		android:layout_width="wrap_content"
-		android:layout_marginBottom="15dp"
-		android:layout_marginLeft="10dp"
-		app:cardBackgroundColor="#eec"
-		app:cardCornerRadius="25dp"
+		android:layout_width="0dp"
+		android:layout_marginBottom="12dp"
+		android:layout_marginLeft="8dp"
+		android:layout_marginRight="4dp"
+		app:cardBackgroundColor="@color/input_bg"
+		app:cardCornerRadius="28dp"
+		app:cardElevation="2dp"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintLeft_toLeftOf="parent"
 		app:layout_constraintRight_toLeftOf="@+id/send_bt"
@@ -40,30 +60,45 @@
 		
 		<LinearLayout
 			android:layout_height="wrap_content"
-			android:layout_width="wrap_content"
-			android:orientation="horizontal">
+			android:layout_width="match_parent"
+			android:gravity="center_vertical"
+			android:orientation="horizontal"
+			android:paddingLeft="6dp"
+			android:paddingRight="12dp">
 			
 			<ImageView
-				android:layout_height="40dp"
-				android:layout_width="40dp"
+				android:layout_height="36dp"
+				android:layout_width="36dp"
 				android:id="@+id/picture"
+				android:padding="6dp"
+				android:contentDescription="Take a photo or video"
 				android:src="@android:drawable/ic_menu_camera"
-				android:layout_margin="5dp" />
+				app:tint="@color/text_secondary"
+				android:layout_margin="2dp" />
 				
 			<ImageView
-				android:layout_height="40dp"
-				android:layout_width="40dp"
+				android:layout_height="36dp"
+				android:layout_width="36dp"
 				android:id="@+id/carm"
+				android:padding="6dp"
+				android:contentDescription="Attach a file"
 				android:src="@drawable/file"
-				android:layout_margin="5dp" />
+				android:layout_margin="2dp" />
 				
 			<EditText
-				android:layout_height="40dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
 				android:singleLine="false"
-				android:maxLines="10"
-				android:layout_width="100dp"
+				android:maxLines="6"
+				android:layout_width="0dp"
+				android:layout_weight="1"
+				android:layout_marginLeft="4dp"
+				android:background="@null"
 				android:hint="Message"
-				android:textColor="#333"
+				android:textSize="16sp"
+				android:inputType="textCapSentences|textMultiLine"
+				android:textColorHint="@color/hint_text"
+				android:textColor="@color/input_text"
 				android:id="@+id/input" />
 		</LinearLayout>
 	</androidx.cardview.widget.CardView>
@@ -73,19 +108,89 @@
 		android:layout_width="wrap_content"
 		android:id="@+id/send_bt"
 		android:gravity="bottom | end"
-		android:src="@android:drawable/presence_audio_away"
-		app:backgroundTint="?attr/colorPrimary"
+		android:src="@drawable/ic_mic"
+		android:contentDescription="Record or send"
+		app:backgroundTint="@color/accent"
+		app:tint="@color/white"
 		app:layout_constraintBottom_toBottomOf="parent"
 		app:layout_constraintRight_toRightOf="parent"
-		android:layout_margin="10dp" />
+		android:layout_marginRight="8dp"
+		android:layout_marginBottom="10dp" />
 		
-	<Chronometer
+	<!-- Voice-note recording UI (WhatsApp style). Shown only while recording: the bar replaces
+		 the text box, rec_hint fades as you slide left to cancel, lock_hint shows the slide-up
+		 gesture, and once locked rec_cancel (trash) appears and the send button sends. -->
+	<LinearLayout
+		android:id="@+id/rec_bar"
+		android:layout_height="50dp"
+		android:layout_width="0dp"
+		android:orientation="horizontal"
+		android:gravity="center_vertical"
+		android:background="@drawable/rec_bar_bg"
+		android:paddingStart="10dp"
+		android:paddingEnd="14dp"
+		android:layout_marginLeft="10dp"
+		android:layout_marginBottom="18dp"
+		android:visibility="gone"
+		app:layout_constraintLeft_toLeftOf="parent"
+		app:layout_constraintRight_toLeftOf="@+id/send_bt"
+		app:layout_constraintBottom_toBottomOf="parent">
+
+		<ImageView
+			android:id="@+id/rec_cancel"
+			android:layout_height="34dp"
+			android:layout_width="34dp"
+			android:padding="4dp"
+			android:src="@drawable/ic_delete_dark"
+			android:contentDescription="Discard recording"
+			android:visibility="gone" />
+
+		<TextView
+			android:layout_height="wrap_content"
+			android:layout_width="wrap_content"
+			android:text="●"
+			android:textColor="#e22"
+			android:textSize="14sp"
+			android:layout_marginEnd="6dp"
+			android:layout_marginStart="4dp" />
+
+		<Chronometer
+			android:id="@+id/rec_dur"
+			android:layout_height="wrap_content"
+			android:layout_width="wrap_content"
+			android:textColor="#333"
+			android:textSize="16sp"
+			android:visibility="gone" />
+
+		<TextView
+			android:id="@+id/rec_hint"
+			android:layout_height="wrap_content"
+			android:layout_width="0dp"
+			android:layout_weight="1"
+			android:gravity="end"
+			android:text="◀  Slide to cancel"
+			android:textColor="#777"
+			android:textSize="14sp"
+			android:maxLines="1" />
+	</LinearLayout>
+
+	<TextView
+		android:id="@+id/lock_hint"
 		android:layout_height="wrap_content"
-		android:id="@+id/rec_dur"
 		android:layout_width="wrap_content"
+		android:text="🔒\n▲"
+		android:gravity="center"
+		android:textSize="16sp"
+		android:textColor="#333"
+		android:paddingTop="10dp"
+		android:paddingBottom="10dp"
+		android:paddingLeft="12dp"
+		android:paddingRight="12dp"
+		android:background="@drawable/rec_bar_bg"
+		android:visibility="gone"
+		android:layout_marginRight="22dp"
+		android:layout_marginBottom="8dp"
 		app:layout_constraintRight_toRightOf="parent"
-		app:layout_constraintBottom_toTopOf="@+id/send_bt"
-		android:layout_margin="10dp"
-		android:visibility="gone" />
+		app:layout_constraintBottom_toTopOf="@+id/send_bt" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

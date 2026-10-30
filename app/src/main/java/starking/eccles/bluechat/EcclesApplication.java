@@ -6,28 +6,17 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothSocket;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 import java.util.concurrent.ConcurrentHashMap;
-import androidx.multidex.MultiDexApplication;
+
 import androidx.preference.PreferenceManager;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import starking.eccles.bluechat.activities.EcclesOptions;
 import starking.eccles.bluechat.bclassic.ClassicCompat;
@@ -45,7 +34,7 @@ import starking.eccles.Interface.EcclesMessage;
 import starking.eccles.receivers.BluetoothStateReceiver;
 import starking.eccles.util.EcclesIcon;
 
-public class EcclesApplication extends MultiDexApplication implements Listener.ServerStatus {
+public class EcclesApplication extends Application implements Listener.ServerStatus {
 
 	public BluetoothAdapter adapter;
 	public String name;
@@ -76,6 +65,7 @@ public class EcclesApplication extends MultiDexApplication implements Listener.S
 
 	public void onCreate(){
 			super.onCreate();
+			starking.eccles.util.PeerStore.init(this);
 			try{
 
 			adapter= BluetoothAdapter.getDefaultAdapter();
@@ -135,7 +125,7 @@ public class EcclesApplication extends MultiDexApplication implements Listener.S
 	}
 
 	public boolean isConnected(String add){
-		return connectionList.containsKey(add);
+		return add != null && connectionList.containsKey(add);
 	}
 
 	public boolean writeHeadless(BluetoothSocket socket,EcclesMessage message){
@@ -167,10 +157,14 @@ public class EcclesApplication extends MultiDexApplication implements Listener.S
 	// it on regardless.
 
 	@Override
-	public void onActive(){}
+	public void onActive(){
+		if(currentActivity instanceof MajorActivity) ((MajorActivity)currentActivity).onActive();
+	}
 
 	@Override
-	public void onFailed(String s){}
+	public void onFailed(String s){
+		if(currentActivity instanceof MajorActivity) ((MajorActivity)currentActivity).onFailed(s);
+	}
 
 	@Override
 	public boolean onAccepted(BluetoothSocket s){
@@ -198,8 +192,9 @@ public class EcclesApplication extends MultiDexApplication implements Listener.S
 			if(reader.read(s)){ readOk= true; break; }
 		}
 		if(!readOk && currentActivity != null){
-			Toast.makeText(currentActivity,"Eccles encountered issue reading from "+s.getRemoteDevice().getName(),1).show();
+			Toast.makeText(currentActivity,"Bluechat had a problem reading from "+starking.eccles.util.PeerStore.displayName(s.getRemoteDevice()),1).show();
 		}
+		sendProfileHeadless(s);
 		if(!ClassicCompat.isRecepient(this,s.getRemoteDevice().getAddress())) sendIconHeadless(s);
 		return true;
 	}
@@ -210,6 +205,22 @@ public class EcclesApplication extends MultiDexApplication implements Listener.S
 	 * {@code sentFailed()} callback flow, so it works identically regardless of whether any
 	 * Activity is currently alive.
 	 */
+	/** Tells a freshly connected peer our Bluechat name and platform (once per connection). */
+	public void sendProfileHeadless(BluetoothSocket socket){
+		if(socket == null || !socket.isConnected()) return;
+		writeHeadless(socket,new EcclesMessage(EcclesMessage.TYPE_PROFILE,0)
+				.setData(starking.eccles.util.PeerStore.profilePayload()));
+	}
+
+	/** Re-sends our profile to everyone currently connected (after changing our name). */
+	public void broadcastProfile(){
+		new Thread(() -> {
+			for(BluetoothSocket cs: connectionList.values()){
+				try{ sendProfileHeadless(cs); } catch(Exception e){ Log.w("Eccles","profile broadcast failed",e); }
+			}
+		}).start();
+	}
+
 	private void sendIconHeadless(BluetoothSocket socket){
 		if(socket == null || !socket.isConnected()){
 			Log.w("Eccles","cant send icon to a device not connected");
@@ -218,8 +229,20 @@ public class EcclesApplication extends MultiDexApplication implements Listener.S
 		Bitmap b= ClassicCompat.queryDeviceIcon("Eccles",this);
 		if(b == null) return;
 		EcclesMessage m= new EcclesMessage(EcclesMessage.TYPE_ICON,0)
-				.setData(EcclesIcon.convertToBytes(b));
-		writeHeadless(socket,m);
+				.setData(EcclesIcon.prepareIcon(b));
+		if(writeHeadless(socket,m)){
+			// Remember it was delivered so it isn't re-sent on every reconnect.
+			ClassicCompat.putRecipient(this,socket.getRemoteDevice().getAddress());
+		}
+	}
+
+	/** Pushes our (new) icon to everyone currently connected, right after it changes. */
+	public void broadcastIcon(){
+		new Thread(() -> {
+			for(BluetoothSocket cs: connectionList.values()){
+				try{ sendIconHeadless(cs); } catch(Exception e){ Log.w("Eccles","icon broadcast failed",e); }
+			}
+		}).start();
 	}
 
 	protected void setCurrentActivity(EcclesActivity activity){
@@ -237,7 +260,7 @@ public class EcclesApplication extends MultiDexApplication implements Listener.S
 				adapter.enable();
 				turnedOn= true;
 			} else if(!(activity instanceof EcclesOptions)){
-				activity.showDialog("Bluechat need to enable your device bluetooth in order to scan and connect to devices \nyou can ignore this if you want to be offline","Allow","Ignore","Allow Always",()->{
+				activity.showDialog("Bluechat needs to turn on Bluetooth to scan for and connect to devices.\nYou can ignore this if you want to stay offline.","Allow","Ignore","Allow Always",()->{
 
 					if(activity.dialog.checked){
 						pref.edit().putBoolean("auto_enable",true).apply();

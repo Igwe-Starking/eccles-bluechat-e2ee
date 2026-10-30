@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 600" width="1280" height="600" role="img" aria-label="Eccles Bluechat: private Bluetooth chat and calls. No internet. End-to-end encrypted.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#060412"/><stop offset="0.5" stop-color="#150b38"/><stop offset="1" stop-color="#2d1578"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#19d3a2" stop-opacity="0.38"/><stop offset="1" stop-color="#19d3a2" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.5"/><stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ttl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9a7ff"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#19d3a2"/><stop offset="1" stop-color="#6c5ce7"/>
+    </linearGradient>
+    <linearGradient id="phone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b1140"/><stop offset="1" stop-color="#0b0820"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#ffffff" stroke-opacity="0.04"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="600" fill="url(#bg)"/>
+  <rect width="1280" height="600" fill="url(#grid)"/>
+  <circle cx="1085" cy="300" r="380" fill="url(#glow2)"/>
+  <circle cx="1085" cy="300" r="250" fill="url(#glow)"/>
+
+  <g fill="none" stroke="#19d3a2" stroke-width="2">
+    <circle cx="1085" cy="300" r="120" opacity="0"><animate attributeName="r" values="120;330" dur="4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.55;0" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="1085" cy="300" r="120" opacity="0"><animate attributeName="r" values="120;330" dur="4s" begin="1.33s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.55;0" dur="4s" begin="1.33s" repeatCount="indefinite"/></circle>
+    <circle cx="1085" cy="300" r="120" opacity="0"><animate attributeName="r" values="120;330" dur="4s" begin="2.66s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.55;0" dur="4s" begin="2.66s" repeatCount="indefinite"/></circle>
+  </g>
+
+  <g transform="translate(96 92)">
+    <path d="M18 0H122C134 0 144 10 144 22V92C144 104 134 114 122 114H70L34 146V114H18C8 114 0 106 0 96V18C0 8 8 0 18 0Z" fill="url(#mark)"/>
+    <rect x="52" y="48" width="40" height="32" rx="6" fill="#0b0820"/>
+    <path d="M60 48V40C60 30 84 30 84 40V48" fill="none" stroke="#0b0820" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="72" cy="63" r="5" fill="#19d3a2"/>
+  </g>
+  <g font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif">
+    <text x="272" y="150" font-size="76" font-weight="800" fill="url(#ttl)" letter-spacing="-2">Eccles Bluechat</text>
+    <text x="276" y="196" font-size="26" font-weight="600" fill="#cfc6ff">Private chat and calls. No internet. No accounts.</text>
+  </g>
+
+  <g transform="translate(96 246)" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700">
+    <rect width="236" height="56" rx="28" fill="#19d3a2" fill-opacity="0.16" stroke="#19d3a2" stroke-opacity="0.6"/>
+    <text x="118" y="36" text-anchor="middle" fill="#6ff0cb">v3.1.0 · E2EE</text>
+    <g transform="translate(252 0)"><rect width="270" height="56" rx="28" fill="#ffffff" fill-opacity="0.07" stroke="#ffffff" stroke-opacity="0.2"/><text x="135" y="36" text-anchor="middle" fill="#ece8ff">AES-256-GCM</text></g>
+    <g transform="translate(538 0)"><rect width="270" height="56" rx="28" fill="#ffffff" fill-opacity="0.07" stroke="#ffffff" stroke-opacity="0.2"/><text x="135" y="36" text-anchor="middle" fill="#ece8ff">ECDH P-256</text></g>
+  </g>
+
+  <g transform="translate(96 352)" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="30" font-weight="700" fill="#ffffff">
+    <g><rect width="14" height="14" y="-14" rx="4" fill="#19d3a2"/><text x="30" y="0">Text, photos, voice notes and video</text></g>
+    <g transform="translate(0 52)"><rect width="14" height="14" y="-14" rx="4" fill="#8b5cf6"/><text x="30" y="0">Voice and video calls over Bluetooth</text></g>
+    <g transform="translate(0 104)"><rect width="14" height="14" y="-14" rx="4" fill="#5b8cff"/><text x="30" y="0">Zero INTERNET permission. Check it yourself.</text></g>
+  </g>
+
+  <g transform="translate(96 520)" font-family="Inter,'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" font-weight="700">
+    <rect width="300" height="52" rx="26" fill="#ff5fa2"/>
+    <text x="150" y="34" text-anchor="middle" fill="#2a0a1a">Support the build</text>
+    <text x="324" y="34" fill="#b9b0e8" font-weight="500">Open source. Built on a Chromebook.</text>
+  </g>
+
+  <g transform="translate(975 46)">
+    <rect width="220" height="508" rx="34" fill="url(#phone)" stroke="#8b5cf6" stroke-opacity="0.7" stroke-width="3"/>
+    <rect x="0" y="0" width="220" height="64" rx="34" fill="#4527a0"/>
+    <rect x="0" y="34" width="220" height="30" fill="#4527a0"/>
+    <circle cx="34" cy="34" r="14" fill="#cfc6ff"/>
+    <rect x="58" y="24" width="70" height="10" rx="5" fill="#ffffff"/>
+    <rect x="58" y="40" width="40" height="8" rx="4" fill="#6ff0cb"/>
+    <rect x="22" y="80" width="176" height="24" rx="12" fill="#19d3a2" fill-opacity="0.15"/>
+    <text x="110" y="97" text-anchor="middle" font-family="Inter,'Segoe UI',Arial,sans-serif" font-size="11" font-weight="700" fill="#6ff0cb">E2EE · chats and calls encrypted</text>
+    <rect x="16" y="124" width="120" height="38" rx="14" fill="#2a2058"/>
+    <rect x="84" y="176" width="120" height="38" rx="14" fill="#6c5ce7"/>
+    <rect x="16" y="228" width="150" height="38" rx="14" fill="#2a2058"/>
+    <rect x="64" y="280" width="140" height="64" rx="14" fill="#6c5ce7"/>
+    <rect x="16" y="358" width="96" height="38" rx="14" fill="#2a2058"/>
+    <rect x="84" y="410" width="120" height="38" rx="14" fill="#6c5ce7"/>
+    <rect x="16" y="458" width="150" height="34" rx="17" fill="#ffffff" fill-opacity="0.08"/>
+    <circle cx="186" cy="475" r="17" fill="#19d3a2"/>
+    <rect x="30" y="0" width="0" height="0"/>
+  </g>
+  <g transform="translate(1040 530)"><rect width="196" height="50" rx="25" fill="#0b0820" stroke="#19d3a2" stroke-opacity="0.7"/><circle cx="30" cy="25" r="7" fill="#19d3a2"><animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite"/></circle><text x="50" y="32" font-family="Inter,'Segoe UI',Arial,sans-serif" font-size="19" font-weight="700" fill="#6ff0cb">Offline-ready</text></g>
+</svg>

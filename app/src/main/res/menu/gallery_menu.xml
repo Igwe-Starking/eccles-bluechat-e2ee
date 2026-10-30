@@ -4,7 +4,7 @@
 
 	<item
 		android:id="@+id/image"
-		android:title="Image"
+		android:title="Photo"
 		android:icon="@android:drawable/ic_menu_camera" />
 
 	<item

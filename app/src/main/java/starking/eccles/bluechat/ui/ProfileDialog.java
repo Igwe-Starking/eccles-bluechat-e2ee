@@ -68,7 +68,7 @@ public class ProfileDialog extends DialogFragment {
 		View v= getActivity().getLayoutInflater().inflate(R.layout.profile_view,null);
 
 		((TextView) v.findViewById(R.id.pro_t)).setText(pj.Title);
-		((TextView) v.findViewById(R.id.pro_add)).setText(pj.tag);
+		((TextView) v.findViewById(R.id.pro_add)).setText(starking.eccles.util.PeerStore.deviceType(pj.device));
 
 		if(ClassicCompat.queryDeviceIcon(pj.tag,getActivity()) != null){
 			BitmapDrawable bd= new BitmapDrawable(ClassicCompat.queryDeviceIcon(pj.tag,getActivity()));
@@ -85,7 +85,7 @@ public class ProfileDialog extends DialogFragment {
 			b.setOnClickListener((View vv)->{
 				BluetoothDevice d= ea.adapter.getRemoteDevice(pj.tag);
 				if(!ClassicCompat.queryDeviceType(d)){
-					ea.currentActivity.showDialog("Bluechat does not recognize this device as an android device\nYou can still try to connect to this device if you insist","Connect","Cancel",null,()->{
+					ea.currentActivity.showDialog("Bluechat does not recognize this device as an Android device.\nYou can still try to connect to it.","Connect","Cancel",null,()->{
 						ea.currentActivity.connect(d,true);
 					},null);
 				} else {

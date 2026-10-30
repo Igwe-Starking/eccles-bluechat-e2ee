@@ -4,9 +4,9 @@ import android.Manifest;
 import android.animation.ObjectAnimator;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.ClipData;
-import android.content.ClipDescription;
+import android.content.pm.ActivityInfo;
 import android.graphics.Point;
+import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaPlayer;
@@ -18,14 +18,16 @@ import android.os.Process;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
-import android.view.DragEvent;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.TextureView;
+import android.view.Surface;
 import android.view.View;
+import android.view.ViewConfiguration;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.AbsoluteLayout;
 import android.widget.Chronometer;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -54,8 +56,13 @@ import starking.eccles.util.EcclesIcon;
 
 public class VideoActivity extends EcclesActivity {
 
-	private SurfaceView view,video;
+	private SurfaceView view;
+	private TextureView video;
+	/** Wraps video's SurfaceTexture for MediaCodec; created lazily once the TextureView is
+	 * attached and available (see the isAvailable() check where the decoder is started). */
+	private Surface remoteVideoSurface;
 	private FloatingActionButton accept,reject;
+	private FloatingActionButton speakerButton,switchCameraButton;
 	private TextView name;
 	private Chronometer duration;
 	private ImageView icon;
@@ -68,9 +75,23 @@ public class VideoActivity extends EcclesActivity {
 	private ExecutorService writer;
 	private AudioRecord record;
 	private AudioTrack track;
+	private int previousAudioMode= AudioManager.MODE_NORMAL;
+	private Caller.SpeakerRoute speakerRoute;
+	/** See {@link Caller.AudioEffects}'s doc for what this actually fixes (the on-silence
+	 * whine) and why it's needed in addition to the VOICE_COMMUNICATION audio source. */
+	private Caller.AudioEffects audioEffects;
 	private Point screen;
 	private short type;
-	private AbsoluteLayout dragParent;
+
+	/**
+	 * Degrees the incoming (remote) video is rotated for display. Camera2 always hands the
+	 * encoder landscape-oriented frames (see {@link VideoEncoder}'s WIDTH/HEIGHT comment), so
+	 * the decoded output needs a compensating rotation to appear upright in this portrait-only
+	 * activity. -90 is correct for the common case (sensor mounted at 270 degrees, which is
+	 * what most front cameras report); if a device's peer video instead comes in upside-down or
+	 * mirrored, flip the sign to 90 here - this is the only place that needs to change.
+	 */
+	private static final float REMOTE_VIDEO_ROTATION_DEGREES= -90f;
 
 	private VideoEncoder videoEncoder;
 	private VideoDecoder videoDecoder;
@@ -105,31 +126,49 @@ public class VideoActivity extends EcclesActivity {
 
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+		// Without this, rotating the device mid-call would destroy and recreate this whole
+		// Activity (there's no android:configChanges for orientation, and nothing here handled
+		// it) - which would tear down the live camera session, both codecs, the reader/writer
+		// threads and the encrypted-session handshake state, all of which live only in this
+		// Activity's instance fields with no save/restore path. That's a dead or corrupted call,
+		// not a resized one. CallActivity already locks to portrait for the same reason.
+		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+		// Needed before addContent() now, since addContent() sizes/rotates the video view using
+		// it - previously this ran after addContent(), which is fine for its old use (slideIn())
+		// but too late for that.
+		getWindowManager().getDefaultDisplay().getSize(screen= new Point());
 
-		boolean cameraOk=requestPermission(new String[]{Manifest.permission.CAMERA},CAMERA_PERM);
-		boolean audioOk=requestPermission(new String[]{Manifest.permission.RECORD_AUDIO},RECORD_PERM);
-		if(!cameraOk || !audioOk){
-			Toast.makeText(this,"cant initiate video call, Camera or Microphone permission not granted",1).show();
-			finish();
+		// One combined request (two back-to-back requestPermissions() calls make the second one
+		// get dropped), and no finish() while the dialog is up - it is asynchronous, so "not
+		// granted yet" isn't "refused". onRequestPermissionsResult() restarts this screen on a
+		// grant or ends the call on a refusal.
+		if(!requestPermission(new String[]{Manifest.permission.CAMERA,Manifest.permission.RECORD_AUDIO},CAMERA_PERM)){
+			waitingForPermission= true;
 			return;
 		}
 
 		device= getIntent().getExtras()!=null ? getIntent().getExtras().getParcelable("device") : null;
 		if(device == null){
-			Toast.makeText(this,"invalid bluetooth device",1).show();
+			Toast.makeText(this,"Invalid Bluetooth device",1).show();
 			finish();
 			return;
 		}
 		socket= app.getSocket(device.getAddress());
 		type= getIntent().getExtras().getShort("type");
+		if(type == CallActivity.TYPE_RECEIVE){
+			// Same reasoning as CallActivity's onCreate - this instance is the one answering
+			// notifyIncomingCall's full-screen intent (or a direct notification tap), so its
+			// job is done as soon as we're here, including on the early-failure returns below.
+			starking.eccles.util.EcclesNotifier.cancelIncomingCall(this,device);
+		}
 
 		if(socket == null){
-			Toast.makeText(this,device.getName()+" is not active",1).show();
+			Toast.makeText(this,starking.eccles.util.PeerStore.displayName(device)+" is not active",1).show();
 			finish();
 			return;
 		}
 		if(app.inCall){
-			Toast.makeText(this,"Cant initiate call while in call",1).show();
+			Toast.makeText(this,"Can't start a call while already in a call",1).show();
 			finish();
 			return;
 		}
@@ -139,17 +178,47 @@ public class VideoActivity extends EcclesActivity {
 			String[] ids= cm.getCameraIdList();
 			if(ids == null || ids.length==0) throw new IllegalStateException("no camera available");
 		} catch (Exception e){
-			Toast.makeText(this,"Cant initiate video call because no camera is available",1).show();
+			Toast.makeText(this,"Can't start a video call: no camera is available",1).show();
 			finish();
 			return;
 		}
 
 		addContent();
-		getWindowManager().getDefaultDisplay().getSize(screen= new Point());
+	}
+
+	private boolean waitingForPermission= false;
+
+	@Override
+	protected boolean isLockable(){ return false; }
+
+	@Override
+	public void onRequestPermissionsResult(int rc,String[] perm,int[] gr){
+		if(!waitingForPermission || rc != CAMERA_PERM){
+			super.onRequestPermissionsResult(rc,perm,gr);
+			return;
+		}
+		waitingForPermission= false;
+		boolean ok= gr.length > 0;
+		for(int g: gr){ if(g != android.content.pm.PackageManager.PERMISSION_GRANTED) ok= false; }
+		if(ok){
+			recreate();
+			return;
+		}
+		android.bluetooth.BluetoothDevice d= getIntent().getExtras()!=null ? getIntent().getExtras().getParcelable("device") : null;
+		if(d != null && getIntent().getExtras().getShort("type") == CallActivity.TYPE_RECEIVE){
+			android.bluetooth.BluetoothSocket sk= app.getSocket(d.getAddress());
+			if(sk != null) write(sk,new EcclesMessage(EcclesMessage.TYPE_VIDEO,EcclesMessage.SUBTYPE_CALL_ENDED));
+		}
+		Toast.makeText(this,"Can't start the video call without camera and microphone permission",1).show();
+		finish();
 	}
 
 	@Override
 	public void onStart(){
+		if(waitingForPermission){
+			super.onStart();
+			return;
+		}
 		handleCall(type);
 
 		accept.setOnClickListener((View v)->{
@@ -161,6 +230,7 @@ public class VideoActivity extends EcclesActivity {
 			} else {
 				write(socket,new EcclesMessage(EcclesMessage.TYPE_VIDEO,EcclesMessage.SUBTYPE_CALL_ENDED));
 			}
+			app.videoBase.updateNewMessage(device.getAddress(),"2");
 			quit("CALL ENDED");
 		});
 		type= 0;
@@ -196,7 +266,7 @@ public class VideoActivity extends EcclesActivity {
 
 		try{
 			if(!initiate()){
-				Toast.makeText(this,"initiate failed",1).show();
+				Toast.makeText(this,"Failed to start the video call",1).show();
 				quit("Call Initialization failed");
 
 			}
@@ -206,25 +276,67 @@ public class VideoActivity extends EcclesActivity {
 			duration.start();
 			app.inCall= true;
 			slideIn(true);
+			setupCallControls();
 		} catch (Exception e){
 			quit(e.getMessage());
 		}
 	}
 
+	/** Shown only from here - once the call is actually connected, not during ringing, matching
+	 *  how WhatsApp/standard call UIs only show in-call controls once there's an active call to
+	 *  control. */
+	private void setupCallControls(){
+		if(speakerButton != null){
+			AudioManager audioManager= (AudioManager) getSystemService(AUDIO_SERVICE);
+			if(audioManager != null){
+				speakerButton.setVisibility(View.VISIBLE);
+				updateSpeakerIcon(audioManager);
+				speakerButton.setOnClickListener(v-> {
+					Caller.toggleSpeaker(audioManager);
+					updateSpeakerIcon(audioManager);
+				});
+			}
+		}
+		if(switchCameraButton != null && videoEncoder != null){
+			switchCameraButton.setVisibility(View.VISIBLE);
+			switchCameraButton.setOnClickListener(v-> videoEncoder.switchCamera());
+		}
+	}
+
+	private void updateSpeakerIcon(AudioManager audioManager){
+		boolean onSpeaker= Caller.isOnSpeaker(audioManager);
+		// Same icon throughout, tinted to show on/off - simpler and more reliable than hunting
+		// for a system drawable that unambiguously means "earpiece" specifically.
+		speakerButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor(onSpeaker ? "#33ff33" : "#888888")));
+	}
+
 	public void request(){
-		name.setText("Calling "+device.getName());
+		name.setText("Calling "+starking.eccles.util.PeerStore.displayName(device));
 		slideIn(false);
 		write(socket,new EcclesMessage(EcclesMessage.TYPE_VIDEO,EcclesMessage.SUBTYPE_CALL_REQUEST));
+		// This whole family of app.videoBase.insert/updateNewMessage calls - here and in ring(),
+		// the reject button, and sent() below - was simply missing entirely from VideoActivity,
+		// which is the actual reason the Video tab never showed anything: nothing was ever
+		// writing to that table in the first place, no matter how many video calls were made.
+		// Mirrors CallActivity's request()/ring()/reject/sent() exactly, writing to videoBase
+		// instead of callBase.
+		if(!app.videoBase.insert(device,"1")){
+			app.videoBase.updateNewMessage(device.getAddress(),"1");
+		}
 	}
 
 	public void ring(){
 
-		name.setText("Incoming Call from "+device.getName());
+		name.setText("Incoming Call from "+starking.eccles.util.PeerStore.displayName(device));
 		p= MediaPlayer.create(this,EcclesStorage.getTone(this));
 		p.setLooping(true);
 		new Handler(android.os.Looper.getMainLooper()).postDelayed(()->{
 			if(!app.inCall){
 				write(socket,new EcclesMessage(EcclesMessage.TYPE_VIDEO,EcclesMessage.SUBTYPE_CALL_UNANSWERED));
+				if(!app.videoBase.insert(device,"3")){
+					app.videoBase.updateNewMessage(device.getAddress(),"3");
+				}
+				ClassicCompat.newMiss(VideoActivity.this,true);
 				quit("CALL ENDED");
 			}
 
@@ -304,7 +416,7 @@ public class VideoActivity extends EcclesActivity {
 				p.start();
 				new Handler(android.os.Looper.getMainLooper()).postDelayed(()->{
 					if(!app.inCall || !ringed){
-						quit(device.getName()+" Not Reachable");
+						quit(starking.eccles.util.PeerStore.displayName(device)+" Not Reachable");
 					}
 				},10000);
 				ringed= true;
@@ -314,6 +426,8 @@ public class VideoActivity extends EcclesActivity {
 	}
 
 	public void stop(){
+		if(speakerButton != null) speakerButton.setVisibility(View.GONE);
+		if(switchCameraButton != null) switchCameraButton.setVisibility(View.GONE);
 		try{
 			if(p != null){
 				p.stop();
@@ -324,8 +438,18 @@ public class VideoActivity extends EcclesActivity {
 		if(writer != null){ writer.shutdown(); writer= null; }
 		if(videoEncoder != null){ videoEncoder.stop(); videoEncoder= null; }
 		if(videoDecoder != null){ videoDecoder.stop(); videoDecoder= null; }
+		if(remoteVideoSurface != null){
+			try{ remoteVideoSurface.release(); } catch (Exception e){ android.util.Log.w("VideoActivity","error releasing remote video surface",e); }
+			remoteVideoSurface= null;
+		}
 		if(audioEncoder != null){ audioEncoder.stop(); audioEncoder= null; }
 		if(audioDecoder != null){ audioDecoder.stop(); audioDecoder= null; }
+		if(audioEffects != null){ audioEffects.release(); audioEffects= null; }
+		try{
+			if(speakerRoute != null){ speakerRoute.restore(); speakerRoute= null; }
+			AudioManager audioManager= (AudioManager) getSystemService(AUDIO_SERVICE);
+			if(audioManager != null) audioManager.setMode(previousAudioMode);
+		} catch (Exception e){ android.util.Log.w("VideoActivity","error restoring audio mode",e); }
 		try{
 			if(record != null){
 				if(record.getRecordingState()==AudioRecord.RECORDSTATE_RECORDING) record.stop();
@@ -342,9 +466,9 @@ public class VideoActivity extends EcclesActivity {
 
 	@Override
 	public void onStop(){
-		if(isFinishing()){
+		if(isFinishing() && name != null){
 			quit("CALL ENDED");
-			Toast.makeText(this,"Call Quited",1).show();
+			Toast.makeText(this,"Call ended",1).show();
 			try{ if(socket!=null) write(socket,new EcclesMessage(EcclesMessage.TYPE_VIDEO,EcclesMessage.SUBTYPE_CALL_ENDED)); }catch(Exception e){ Log.w("Eccles","unable to send video end",e); }
 		}
 		super.onStop();
@@ -355,25 +479,39 @@ public class VideoActivity extends EcclesActivity {
 
 		accept= findViewById(R.id.accept_bt);
 		reject= findViewById(R.id.reject_bt);
+		speakerButton= findViewById(R.id.speaker_bt);
+		switchCameraButton= findViewById(R.id.switch_camera_bt);
 		view= findViewById(R.id.prev);
 		video= findViewById(R.id.caller_video);
 		duration= findViewById(R.id.duration);
 		icon= findViewById(R.id.icon);
 		name= findViewById(R.id.name);
 		icon.setImageDrawable(EcclesIcon.resize(200,200,ClassicCompat.queryDeviceIcon(device.getAddress(),this),this));
-		dragParent= findViewById(R.id.drag_parent);
+
+		// Give the video view the screen's *swapped* dimensions (screen height as its width,
+		// screen width as its height) so that once it's rotated 90 degrees its visual footprint exactly
+		// matches the portrait screen again, instead of being cropped/letterboxed - see the
+		// REMOTE_VIDEO_ROTATION_DEGREES field doc for why the rotation itself is needed.
+		ViewGroup.LayoutParams rp= video.getLayoutParams();
+		rp.width= screen.y;
+		rp.height= screen.x;
+		video.setLayoutParams(rp);
+		video.setRotation(REMOTE_VIDEO_ROTATION_DEGREES);
 	}
 
 	@Override
 	public void sent(BluetoothSocket s,EcclesMessage m){
 		if(m.type== EcclesMessage.TYPE_VIDEO && m.subtype == EcclesMessage.SUBTYPE_CALL_ACCEPTED){
 			start();
+			if(!app.videoBase.insert(device,"2")){
+				app.videoBase.updateNewMessage(device.getAddress(),"2");
+			}
 		}
 	}
 	@Override
 	public void sentFailed(BluetoothSocket s,EcclesMessage m,String r){
 		if(m.type== EcclesMessage.TYPE_VIDEO && m.subtype== EcclesMessage.SUBTYPE_CALL_ACCEPTED){
-			quit(device.getName()+" out of range");
+			quit(starking.eccles.util.PeerStore.displayName(device)+" out of range");
 		}
 	}
 
@@ -395,6 +533,21 @@ public class VideoActivity extends EcclesActivity {
 			record= Caller.initializeRecord(true);
 			track= Caller.initializeTrack();
 			if(record == null || track == null) return false;
+
+			// Same fix as voice calls (see Caller.AudioEffects's doc) - without this, the
+			// "wheeee" whine on silence happens here too, since VideoActivity manages its own
+			// record/track independently of Caller/CallActivity rather than sharing its
+			// startCall()/stopCall().
+			AudioManager audioManager= (AudioManager) getSystemService(AUDIO_SERVICE);
+			if(audioManager != null){
+				previousAudioMode= audioManager.getMode();
+				audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+				// Same reasoning as Caller#startCall - without this, call audio defaults to the
+				// earpiece (quiet enough to need holding the phone to your ear), including on a
+				// video call where you'd actually want to hear it hands-free.
+				speakerRoute= Caller.SpeakerRoute.apply(audioManager);
+			}
+			audioEffects= Caller.AudioEffects.attach(record.getAudioSessionId());
 
 			if(super.reader != null) super.reader.cancelReading(socket);
 			// Reset per-session state (see the field docs): the previous session may have
@@ -474,23 +627,18 @@ public class VideoActivity extends EcclesActivity {
 				}
 			});
 			if(!camOk){
-				Toast.makeText(this,"failed to start camera encoder",1).show();
+				Toast.makeText(this,"Failed to start the camera",1).show();
 				return false;
 			}
 			if(view != null){
-				view.setOnTouchListener((View v,MotionEvent event)->{
-					switch (event.getAction()){
-						case MotionEvent.ACTION_DOWN:
-							startDragging(v);
-							break;
-						case MotionEvent.ACTION_UP:
-							v.performClick();
-							break;
-					}
-					return true;
-				});
+				view.setOnTouchListener(new PreviewDragListener());
 			}
 
+			videoEncoder.setOrientationListener(deg-> {
+				try{
+					if(sender != null) new EcclesMessage(EcclesMessage.TYPE_VIDEO,EcclesMessage.SUBTYPE_CAMERA_ROTATION).setData(new byte[]{(byte)(deg/90)}).send(sender);
+				} catch(Exception e){ Log.w("Eccles","rotation signal failed",e); }
+			});
 			track.play();
 			reader= Executors.newSingleThreadExecutor();
 			callReaderStarted= true;
@@ -500,10 +648,45 @@ public class VideoActivity extends EcclesActivity {
 						EcclesMessage m= EcclesMessage.read(receiver);
 						if(m == null || m.type != EcclesMessage.TYPE_VIDEO) continue;
 
+						if(m.subtype==EcclesMessage.SUBTYPE_CALL_ENDED){
+							// The remote hanging up while a call is in progress was previously not
+							// handled at all here - this subtype matched none of the branches
+							// below, so it was silently dropped and this thread just kept blocking
+							// on the next read. That left the call screen stuck (never learning
+							// the other side hung up) and, worse, left this reader parked on the
+							// socket indefinitely instead of promptly handing it back via
+							// resumeChatReading() at the bottom of this loop - any chat message
+							// that arrived in that gap would itself be silently discarded too,
+							// since it isn't TYPE_VIDEO. Reacting here immediately fixes both.
+							// break, not continue: app.inCall is set to false inside quit(), but
+							// only once that posted Runnable actually runs on the UI thread: if
+							// this loop instead looped back around to another blocking read, it
+							// could sit there indefinitely if the remote never sends anything
+							// else, right back to the original stuck-thread problem. Breaking
+							// exits immediately and falls through to resumeChatReading() below.
+							runOnUiThread(()-> quit("CALL ENDED"));
+							break;
+						}
+
+						if(m.subtype==EcclesMessage.SUBTYPE_CAMERA_ROTATION){
+							if(m.data != null && m.data.length > 0){
+								final float extra= (m.data[0] & 3) * 90f;
+								runOnUiThread(()-> { if(video != null) video.setRotation(REMOTE_VIDEO_ROTATION_DEGREES + extra); });
+							}
+							continue;
+						}
+
 						if(m.subtype==EcclesMessage.SUBTYPE_CALL_CONFIG){
-							if(videoDecoder == null && m.video != null && video != null && video.getHolder().getSurface().isValid()){
+							// TextureView (unlike SurfaceView) has no isValid()/getSurface() of its
+							// own until its SurfaceTexture is actually attached; isAvailable() is
+							// the equivalent readiness check, and the Surface has to be built once
+							// from that SurfaceTexture and reused (rebuilding it on every check
+							// would hand the decoder a different destination than whatever it was
+							// already configured against).
+							if(videoDecoder == null && m.video != null && video != null && video.isAvailable()){
+								if(remoteVideoSurface == null) remoteVideoSurface= new Surface(video.getSurfaceTexture());
 								videoDecoder= new VideoDecoder();
-								videoDecoder.start(m.video,VideoEncoder.WIDTH,VideoEncoder.HEIGHT,video.getHolder().getSurface(),
+								videoDecoder.start(m.video,VideoEncoder.WIDTH,VideoEncoder.HEIGHT,remoteVideoSurface,
 										()-> quitFromCodecError("Video decoder"));
 							}
 							if(audioDecoder == null && m.voice != null){
@@ -554,31 +737,65 @@ public class VideoActivity extends EcclesActivity {
 		}
 	}
 
-	public void startDragging(View v){
+	/**
+	 * Moves the local preview (the small self-view) by hand, directly off raw touch events,
+	 * instead of going through the platform's startDrag()/OnDragListener machinery. That
+	 * machinery is built for drag-and-drop *between* views/apps (reordering a list, dropping
+	 * onto a target) - using it just to reposition a single view within its own parent, as it
+	 * was here, is swimming upstream against what it's designed for (it's also what was
+	 * actually behind the "preview can't be dragged" bug from earlier: the system plays a
+	 * reject/snap-back animation unless the ACTION_DROP handler explicitly accepts the drop,
+	 * which is easy to get wrong and non-obvious to debug). This is the simpler, direct
+	 * approach: ACTION_DOWN records the starting point, ACTION_MOVE updates the view's own
+	 * position live by the finger's displacement each time, and ACTION_UP either leaves it
+	 * where it landed (if it actually moved past the system's tap-vs-drag touch slop) or
+	 * performs a click (if it didn't) - a tap and a drag are mutually exclusive outcomes of the
+	 * same gesture, exactly like a button inside a ScrollView has to tell the two apart.
+	 */
+	private class PreviewDragListener implements View.OnTouchListener {
+		private final int touchSlop= ViewConfiguration.get(VideoActivity.this).getScaledTouchSlop();
+		private float downRawX,downRawY;
+		private float startX,startY;
+		private boolean moved;
 
-		View.OnDragListener dList= new View.OnDragListener(){
-			@Override
-			public boolean onDrag(View v,DragEvent event){
-				switch (event.getAction()){
-					case DragEvent.ACTION_DROP:
-						AbsoluteLayout.LayoutParams p= (AbsoluteLayout.LayoutParams) v.getLayoutParams();
-						p.x= (int)event.getX();
-						p.y= (int)event.getY();
-						v.setLayoutParams(p);
-						return false;
-				}
-				return true;
+		@Override
+		public boolean onTouch(View v,MotionEvent event){
+			// Positioned via plain View#setX/setY, not AbsoluteLayout.LayoutParams - that works
+			// inside any ViewGroup (drag_parent is now a plain FrameLayout), since it's a
+			// property of the view itself rather than something only one specific deprecated
+			// parent type understood.
+			switch (event.getActionMasked()){
+				case MotionEvent.ACTION_DOWN:
+					downRawX= event.getRawX();
+					downRawY= event.getRawY();
+					startX= v.getX();
+					startY= v.getY();
+					moved= false;
+					return true;
+				case MotionEvent.ACTION_MOVE:
+					float dx= event.getRawX()-downRawX;
+					float dy= event.getRawY()-downRawY;
+					if(!moved && (Math.abs(dx) > touchSlop || Math.abs(dy) > touchSlop)) moved= true;
+					if(moved){
+						v.setX(startX+dx);
+						v.setY(startY+dy);
+					}
+					return true;
+				case MotionEvent.ACTION_UP:
+					if(!moved) v.performClick();
+					return true;
+				case MotionEvent.ACTION_CANCEL:
+					// Snap back if the gesture was interrupted mid-drag (e.g. a system dialog
+					// popping up) rather than leaving it wherever it happened to be at that
+					// instant.
+					if(moved){
+						v.setX(startX);
+						v.setY(startY);
+					}
+					return true;
 			}
-		};
-
-		dragParent.setOnDragListener(dList);
-
-		ClipData.Item item= new ClipData.Item("Eccles drag");
-		String[] mType= {ClipDescription.MIMETYPE_TEXT_PLAIN};
-
-		ClipData data= new ClipData("Eccles",mType,item);
-		View.DragShadowBuilder b= new View.DragShadowBuilder(v);
-		v.startDrag(data,b,null,0);
+			return false;
+		}
 	}
 
 }

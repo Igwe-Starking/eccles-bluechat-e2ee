@@ -1,6 +1,7 @@
 package starking.eccles.bluechat;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -106,12 +107,20 @@ public class EcclesActivity extends AppCompatActivity {
 		super.onCreate(b);
 
 		app= (EcclesApplication) getApplication();
+		applySecureFlag();
 
 		actionSearch = new SearchView(this);
 
-		if(chatBase == null) chatBase= app.chatBase;
-		if(callBase == null) callBase= app.callBase;
-		if(videoBase == null) videoBase= app.videoBase;
+		// The tab Fragments read these straight off the Activity. If the databases aren't open
+		// (e.g. this screen was restored directly after the process restarted, skipping the
+		// MainActivity splash that normally opens them) every load fails with an NPE on a null
+		// EcclesData, so open them here first and always take the live instances.
+		if(!app.databaseOpen && app.adapter != null){
+			try{ app.openDataBase(); } catch(Exception e){ android.util.Log.e("EcclesActivity","openDataBase failed",e); }
+		}
+		chatBase= app.chatBase;
+		callBase= app.callBase;
+		videoBase= app.videoBase;
 
 		reader= app.reader;
 		listener= app.listener;
@@ -143,16 +152,121 @@ public class EcclesActivity extends AppCompatActivity {
 	 */
 	private static int activeActivityCount= 0;
 
+	/** True while any of this app's activities is started (visible) - i.e. the app is in the
+	 *  foreground, as opposed to merely alive in the background (which Listener's foreground
+	 *  service keeps it even while no screen is visible). Used by
+	 *  {@link starking.eccles.util.EcclesNotifier#notifyIncomingCall} to decide whether to just
+	 *  jump straight to the call screen (foreground) or post a ringing notification instead
+	 *  (background) - see that method's doc for why that split matters. */
+	public static boolean isAppInForeground(){
+		return activeActivityCount > 0;
+	}
+
+	/** Set (when the "Unlock with Fingerprint" preference is on) every time the app goes to the
+	 *  background, and cleared once {@link MajorActivity#checkBiometricLock} succeeds - i.e.
+	 *  "the app needs a fresh fingerprint check before anything in it should be usable". Starts
+	 *  true so a cold start also requires it, matching "just started" from the setting's own
+	 *  description. */
+	public static boolean needsUnlock= true;
+
 	@Override
 	protected void onStart(){
 		super.onStart();
 		activeActivityCount++;
+		applySecureFlag();
+		if(isLockable()) enforceBiometricLock();
+	}
+
+	/** Whether this screen is covered by the fingerprint lock. Everything is, except the
+	 *  call screens (an incoming call must stay answerable) - those override this. */
+	protected boolean isLockable(){ return true; }
+
+	/** While the fingerprint lock setting is on, FLAG_SECURE blocks screenshots/screen
+	 *  recording and makes the recents/overview thumbnail black. Re-evaluated on every start
+	 *  so toggling the setting takes effect without restarting the app. */
+	protected void applySecureFlag(){
+		try{
+			boolean on= app != null && app.pref.getBoolean("biometric_lock",false);
+			if(on) getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE,android.view.WindowManager.LayoutParams.FLAG_SECURE);
+			else getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+		} catch(Exception e){ android.util.Log.e("EcclesActivity","secure flag",e); }
+	}
+
+	private View lockCover;
+	private static final int LOCK_AUTHENTICATORS= androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK | androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+
+	/** Shared lock for activities without their own overlay (ChatActivity). Call from onStart.
+	 *  Covers the screen with an opaque view until authentication succeeds. */
+	private boolean lockPromptShowing= false;
+
+	protected void enforceBiometricLock(){
+		if(lockPromptShowing && needsUnlock) return;
+		if(!needsUnlock || !app.pref.getBoolean("biometric_lock",false)){
+			if(lockCover != null) lockCover.setVisibility(View.GONE);
+			return;
+		}
+		if(lockCover == null){
+			TextView t= new TextView(this);
+			t.setText("Locked - tap to unlock");
+			t.setTextColor(0xffffffff);
+			t.setGravity(android.view.Gravity.CENTER);
+			t.setBackgroundColor(0xff000000);
+			t.setClickable(true);
+			// An explicit tap always retries, even if a stale "prompt showing" flag survived.
+			t.setOnClickListener(v-> { lockPromptShowing= false; enforceBiometricLock(); });
+			lockCover= t;
+			// On the decor view (not android.R.id.content) so it also covers the toolbar and
+			// option menu - otherwise Settings was reachable, and the lock switchable off, while locked.
+			((ViewGroup) getWindow().getDecorView()).addView(t,new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
+		}
+		lockCover.setVisibility(View.VISIBLE);
+		lockCover.bringToFront();
+		lockPromptShowing= true;
+
+		if(androidx.biometric.BiometricManager.from(this).canAuthenticate(LOCK_AUTHENTICATORS) != androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS){
+			needsUnlock= false;
+			lockPromptShowing= false;
+			lockCover.setVisibility(View.GONE);
+			return;
+		}
+		androidx.biometric.BiometricPrompt.PromptInfo info= new androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+				.setTitle("Unlock Bluechat")
+				.setSubtitle("Confirm your fingerprint or device PIN/pattern/password to continue")
+				.setAllowedAuthenticators(LOCK_AUTHENTICATORS)
+				.build();
+		new androidx.biometric.BiometricPrompt(this,androidx.core.content.ContextCompat.getMainExecutor(this),
+				new androidx.biometric.BiometricPrompt.AuthenticationCallback(){
+					@Override
+					public void onAuthenticationSucceeded(androidx.biometric.BiometricPrompt.AuthenticationResult r){
+						super.onAuthenticationSucceeded(r);
+						needsUnlock= false;
+						lockPromptShowing= false;
+						lockCover.setVisibility(View.GONE);
+					}
+					@Override
+					public void onAuthenticationError(int code,CharSequence msg){
+						super.onAuthenticationError(code,msg);
+						lockPromptShowing= false;
+						// ERROR_CANCELED = the system cancelled the prompt (e.g. rotation recreated
+						// the screen); the user didn't refuse, so don't send the app to the background.
+						if(code == androidx.biometric.BiometricPrompt.ERROR_CANCELED || isFinishing() || isChangingConfigurations()) return;
+						moveTaskToBack(true);
+					}
+				}).authenticate(info);
 	}
 
 	@Override
 	protected void onStop(){
 		super.onStop();
+		// A BiometricPrompt that was up when the app was backgrounded is torn down silently
+		// (no callback), so this flag would stay true forever and every later attempt to
+		// unlock - including tapping the lock screen - would be ignored. Always reset it here.
+		lockPromptShowing= false;
 		activeActivityCount--;
+		// A rotation (or other configuration change) stops this Activity only to recreate it
+		// straight away - the app is NOT going to the background, so it must not clear the
+		// plaintext cache or require a fresh unlock.
+		if(isChangingConfigurations()) return;
 		if(activeActivityCount <= 0){
 			activeActivityCount= 0;
 			// The whole app (not just this one screen) has gone to the background. Decrypted
@@ -166,6 +280,9 @@ public class EcclesActivity extends AppCompatActivity {
 			// time a media message scrolls back into view, so the file needs to persist for as
 			// long as the user might still be looking at this screen.
 			EcclesStorage.clearPlaintextCache(this);
+			if(app != null && app.pref.getBoolean("biometric_lock",false)){
+				needsUnlock= true;
+			}
 		}
 	}
 
@@ -218,8 +335,8 @@ public class EcclesActivity extends AppCompatActivity {
 			sb.dismiss();
 		});
 		sb.setActionTextColor(sbc);
-		sb.setBackgroundTint(R.color.main);
-		sb.setTextColor(Color.YELLOW);
+		sb.setBackgroundTint(0xFF2B2640);
+		sb.setTextColor(Color.WHITE);
 
 		sb.show();
 		return sb;
@@ -231,8 +348,9 @@ public class EcclesActivity extends AppCompatActivity {
 
 			contextView= v;
 			m.add(((EcclesApplication)getApplication()).isConnected(address) ? "Disconnect":"Connect");
+			m.add("Rename");
 			m.add("Delete");
-			m.add(block(address,BLOCK_CHECK_BLOCK)?"unBlock":"block");
+			m.add(block(address,BLOCK_CHECK_BLOCK)?"Unblock":"Block");
 
 	}
 
@@ -273,8 +391,8 @@ public class EcclesActivity extends AppCompatActivity {
 	@Override
 	public void onRequestPermissionsResult(int rc,String[] perm,int[] gr){
 		try{
-		if(rc== LOCATION_PERM && gr[0] != PackageManager.PERMISSION_GRANTED){
-			showDialog("Bluechat needs location permission inorder to scan for available devices\nthis is only used to find available devices and Bluechat never access your location at any time\nyou can ignore this if you don't want to scan for devices","Try Again","ignore",null,()->{
+		if(rc== LOCATION_PERM && (gr.length == 0 || gr[0] != PackageManager.PERMISSION_GRANTED)){
+			showDialog("Bluechat needs location permission to scan for nearby devices.\nIt is only used to find devices; Bluechat never accesses your location.\nYou can ignore this if you don't want to scan for devices.","Try Again","ignore",null,()->{
 				requestPermission(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION},LOCATION_PERM);
 			},null);
 		} else {
@@ -283,8 +401,8 @@ public class EcclesActivity extends AppCompatActivity {
 			}
 		}
 
-		if(rc == RECORD_PERM && gr[0] != PackageManager.PERMISSION_GRANTED){
-			showDialog("Bluechat needs microphone permission in order to record audio and initiate voice calls\nYou can ignore this if you dont want calls and audion chats","Grant","Ignore",null,()->{
+		if(rc == RECORD_PERM && (gr.length == 0 || gr[0] != PackageManager.PERMISSION_GRANTED)){
+			showDialog("Bluechat needs microphone permission to record audio and make voice calls.\nYou can ignore this if you don't want calls and voice notes.","Grant","Ignore",null,()->{
 				requestPermission(new String[]{Manifest.permission.RECORD_AUDIO},RECORD_PERM);
 			},null);
 		}
@@ -369,17 +487,18 @@ public class EcclesActivity extends AppCompatActivity {
 
 		} else {
 			if(listener != null && !listener.disabled && app.pref.getBoolean("auto_listen",true))listen();
-			Toast.makeText(this,"Bluetooth Enabled Successfully",1).show();
+			Toast.makeText(this,"Bluetooth turned on",1).show();
 			toasted= true;
 		}
 	}
 
-	public void connect(BluetoothDevice device,boolean showProgress){
+	@SuppressLint("MissingPermission")
+    public void connect(BluetoothDevice device, boolean showProgress){
 		try{
 		if(performBond(device)){
 			BluetoothAdapter adapter= app.adapter;
 			if(!adapter.isEnabled()){
-				Toast.makeText(this,"Cant connect while bluetooth is off",1).show();
+				Toast.makeText(this,"Can't connect while Bluetooth is off",1).show();
 				return;
 			}
 			final Handler handler= new Handler(getMainLooper());
@@ -395,10 +514,10 @@ public class EcclesActivity extends AppCompatActivity {
 				try{
 					if(showProgress){
 						handler.post(()->{
-							showProgressDialog("Connecting to "+device.getName());
+							showProgressDialog("Connecting to "+starking.eccles.util.PeerStore.displayName(device));
 						});
 					}
-					final BluetoothSocket socket= device.createRfcommSocketToServiceRecord(ClassicCompat.uuid);
+					@SuppressLint("MissingPermission") final BluetoothSocket socket= device.createRfcommSocketToServiceRecord(ClassicCompat.uuid);
 					socket.connect();
 					handler.post(()->{
 						onConnected(socket);
@@ -416,12 +535,12 @@ public class EcclesActivity extends AppCompatActivity {
 	public boolean performBond(BluetoothDevice device){
 		if(device.getBondState()==BluetoothDevice.BOND_BONDED) return true;
 
-		showDialog("You are not paired with "+device.getName()+"\nBluechat needs to pair with "+device.getName()+"in order to create a reliable connection","Pair","Cancel",null,()->{
+		showDialog("You are not paired with "+starking.eccles.util.PeerStore.displayName(device)+"\nBluechat needs to pair with "+starking.eccles.util.PeerStore.displayName(device)+"in order to create a reliable connection","Pair","Cancel",null,()->{
 			if(device.createBond()){
 
-				Toast.makeText(this,"pairing with "+device.getName()+"...",1).show();
+				Toast.makeText(this,"Pairing with "+starking.eccles.util.PeerStore.displayName(device)+"...",1).show();
 			} else {
-				Toast.makeText(this,"Failed to pair with "+device.getName(),1).show();
+				Toast.makeText(this,"Failed to pair with "+starking.eccles.util.PeerStore.displayName(device),1).show();
 			}
 		},null);
 		return false;
@@ -430,12 +549,18 @@ public class EcclesActivity extends AppCompatActivity {
 	@CallSuper
 	public void onConnected(BluetoothSocket socket){
 		app.connectionList.putIfAbsent(socket.getRemoteDevice().getAddress(),socket);
-		if(!read(socket)){
-			Toast.makeText(this,"Eccles encountered issue reading from "+socket.getRemoteDevice().getName(),1).show();
+		if(reader == null) reader= app.reader;
+		boolean readOk= false;
+		for(int i= 0;i<10;i++){
+			if(reader.read(socket)){ readOk= true; break; }
+		}
+		if(!readOk){
+			Toast.makeText(this,"Bluechat had a problem reading from "+starking.eccles.util.PeerStore.displayName(socket.getRemoteDevice()),1).show();
 		}
 		try{
 		if(progressDialog !=  null) progressDialog.cancel();
-		Toast.makeText(this,"connected successfully to "+socket.getRemoteDevice().getName(),1).show();
+		Toast.makeText(this,"Connected to "+starking.eccles.util.PeerStore.displayName(socket.getRemoteDevice()),1).show();
+		if(socket.isConnected()) write(socket,new EcclesMessage(EcclesMessage.TYPE_PROFILE,0).setData(starking.eccles.util.PeerStore.profilePayload()));
 		if(!ClassicCompat.isRecepient(this,socket.getRemoteDevice().getAddress()))sendIcon(socket);
 		} catch (Exception e){ android.util.Log.e("EcclesActivity", "Suppressed exception", e); }
 	}
@@ -452,7 +577,7 @@ public class EcclesActivity extends AppCompatActivity {
 	public void onConnectionFailed(BluetoothDevice device,String reason){
 		try{
 		if(progressDialog != null) progressDialog.cancel();
-		showDialog("Failed to connect to "+device.getName()+"\nreason:"+reason,"Try Again","Forget",null,()->{
+		showDialog("Failed to connect to "+starking.eccles.util.PeerStore.displayName(device)+"\nReason: "+reason,"Try Again","Forget",null,()->{
 			connect(device,true);
 		},null);
 		} catch (Exception e){
@@ -465,7 +590,7 @@ public class EcclesActivity extends AppCompatActivity {
 			if(progressDialog != null) progressDialog.cancel();
 		} catch(Exception ignored){}
 		String deviceLabel;
-		try{ deviceLabel= socket.getRemoteDevice().getName(); } catch(Exception e){ deviceLabel= ke.remoteAddress; }
+		try{ deviceLabel= starking.eccles.util.PeerStore.displayName(socket.getRemoteDevice()); } catch(Exception e){ deviceLabel= "this device"; }
 		String fp= formatFingerprint(ke.newFingerprint);
 		String msg= "The security key for "+deviceLabel+" has changed since your last conversation.\n\n"+
 			"New key:\n"+fp+"\n\n"+
@@ -542,6 +667,39 @@ public class EcclesActivity extends AppCompatActivity {
 		onDisconnected(socket.getRemoteDevice());
 	}
 
+	/** Called when a connected peer announces (or changes) its name/platform, so open screens
+	 *  can refresh. Default does nothing. */
+	public void onPeerProfileChanged(String address){
+	}
+
+	/** Lets the user choose what THEY call this person. It only changes how the name looks on
+	 *  this phone; the other person's own name for themselves is untouched and can be restored. */
+	public void renamePeer(final BluetoothDevice dv){
+		if(dv == null) return;
+		final android.widget.EditText input= new android.widget.EditText(this);
+		input.setSingleLine(true);
+		input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(starking.eccles.util.PeerStore.MAX_NAME)});
+		input.setText(starking.eccles.util.PeerStore.displayName(dv));
+		input.setSelectAllOnFocus(true);
+		final String announced= starking.eccles.util.PeerStore.announcedName(dv.getAddress());
+		AlertDialog.Builder b= new AlertDialog.Builder(this)
+				.setTitle("Rename contact")
+				.setMessage("This name is only shown on your phone.")
+				.setView(input)
+				.setPositiveButton("Save",(d,w)->{
+					starking.eccles.util.PeerStore.setCustomName(dv.getAddress(),input.getText().toString());
+					onPeerProfileChanged(dv.getAddress());
+				})
+				.setNegativeButton("Cancel",null);
+		if(starking.eccles.util.PeerStore.customName(dv.getAddress()) != null){
+			b.setNeutralButton(announced != null ? "Use their name" : "Reset",(d,w)->{
+				starking.eccles.util.PeerStore.setCustomName(dv.getAddress(),null);
+				onPeerProfileChanged(dv.getAddress());
+			});
+		}
+		b.show();
+	}
+
 	public void sendIcon(BluetoothSocket socket){
 		if(socket== null || !socket.isConnected()){
 			Log.w("Eccles","cant send icon to a device not connected");
@@ -551,7 +709,7 @@ public class EcclesActivity extends AppCompatActivity {
 		Bitmap b= ClassicCompat.queryDeviceIcon("Eccles",this);
 		if(b == null) return;
 
-		EcclesMessage m= new EcclesMessage(EcclesMessage.TYPE_ICON,0).setData(EcclesIcon.convertToBytes(b));
+		EcclesMessage m= new EcclesMessage(EcclesMessage.TYPE_ICON,0).setData(EcclesIcon.prepareIcon(b));
 		write(socket,m);
 	}
 
@@ -559,13 +717,13 @@ public class EcclesActivity extends AppCompatActivity {
 		int color= 0;
 		switch (status){
 			case "active":
-				color= Color.GREEN;
+				color= 0xFF9BF2C4;
 				break;
 			case "offline":
-				color= Color.RED;
+				color= 0xFFFFB4AB;
 				break;
 			case "available":
-				color= Color.BLUE;
+				color= 0xFFB9D3FF;
 				break;
 			default:
 				return;
@@ -594,16 +752,19 @@ public class EcclesActivity extends AppCompatActivity {
 					case "Disconnect":
 						disconnect(dv,true);
 						return true;
+					case "Rename":
+						renamePeer(dv);
+						return true;
 					case "Delete":
 						if(this instanceof SelectActivity)delete(dv,true);else delete(dv,false);
 						ClassicCompat.deleteDeviceIcon(dv.getAddress(),this);
 						return true;
-					case "block":
-						showDialog("Are you sure you want to block "+app.adapter.getRemoteDevice(tg).getName()+"\nthis device can still discover you and may connect to you but can no longer be able to chat,call or video call you","Block","Cancel",null,()->{
+					case "Block":
+						showDialog("Are you sure you want to block "+starking.eccles.util.PeerStore.displayName(app.adapter.getRemoteDevice(tg))+"\nThis device can still discover and connect to you, but it will no longer be able to chat with you, call you or video call you.","Block","Cancel",null,()->{
 							block(tg,BLOCK_BLOCK);
 						},null);
 						return true;
-					case "unBlock":
+					case "Unblock":
 						block(tg,BLOCK_UNBLOCK);
 						return true;
 				}
@@ -619,7 +780,7 @@ public class EcclesActivity extends AppCompatActivity {
 			// unconditionally after merely showing the dialog. Previously this fired
 			// immediately regardless of the user's choice, so cancelling "disconnect?" still
 			// silently discarded the live session/crypto state while leaving the socket open.
-			showDialog("Are you sure you want to disconnect from "+d.getName()+"\n Any pending transaction will be cancelled","Disconnect","Cancel",null,()->{
+			showDialog("Are you sure you want to disconnect from "+starking.eccles.util.PeerStore.displayName(d)+"\nAny pending transactions will be cancelled.","Disconnect","Cancel",null,()->{
 				close(d);
 				onDisconnected(d);
 			},null);
@@ -644,11 +805,11 @@ public class EcclesActivity extends AppCompatActivity {
 	public void delete(final BluetoothDevice d,boolean unpair){
 		if(unpair){
 			if(d.getBondState()==BluetoothDevice.BOND_BONDED){
-				showDialog("Deleting "+d.getName()+" will automatically remote it from ur paired device list\nAre you sure you want to continue","Delete","Cancel",null,()->{
+				showDialog("Deleting "+starking.eccles.util.PeerStore.displayName(d)+" will remove it from your paired devices.\nDo you want to continue?","Delete","Cancel",null,()->{
 					if(unPair(d)){
-						Toast.makeText(this,d.getName()+" unpaired successfully",1).show();
+						Toast.makeText(this,starking.eccles.util.PeerStore.displayName(d)+" unpaired",1).show();
 					} else {
-						Toast.makeText(this,"failed to unpaire "+d.getName(),1).show();
+						Toast.makeText(this,"Failed to unpair "+starking.eccles.util.PeerStore.displayName(d),1).show();
 					}
 					remove(d);
 				},null);
@@ -675,11 +836,11 @@ public class EcclesActivity extends AppCompatActivity {
 		switch (st){
 			case BLOCK_BLOCK:
 				pref.edit().putBoolean(add,true).apply();
-				Toast.makeText(this,app.adapter.getRemoteDevice(add).getName()+" Blocked Successfully",1).show();
+				Toast.makeText(this,starking.eccles.util.PeerStore.displayName(app.adapter.getRemoteDevice(add))+" blocked",1).show();
 				break;
 			case BLOCK_UNBLOCK:
 				pref.edit().remove(add).apply();
-				Toast.makeText(this,app.adapter.getRemoteDevice(add).getName()+" unblocked successfully",1).show();
+				Toast.makeText(this,starking.eccles.util.PeerStore.displayName(app.adapter.getRemoteDevice(add))+" unblocked",1).show();
 				break;
 			case BLOCK_CHECK_BLOCK:
 				return pref.getBoolean(add,false);
@@ -728,7 +889,7 @@ public class EcclesActivity extends AppCompatActivity {
 	public void exit(boolean alert){
 
 		if(alert){
-			showDialog("Are you sure you want to exit?\nall current trasactions will be canceled","Exit","Cancel",null,()->{
+			showDialog("Are you sure you want to exit?\nAll current transactions will be cancelled.","Exit","Cancel",null,()->{
 				exit(false);
 			},null);
 			return;
@@ -750,8 +911,9 @@ public class EcclesActivity extends AppCompatActivity {
 	}
 
 	// The read(BluetoothSocket) wrapper (10x retry over Reader#read) that used to live here was
-	// only ever called from the now-removed onAccepted() above; it has no other callers left,
-	// so it was dead code once that method moved to EcclesApplication.
+	// only ever called from the now-removed onAccepted() above (that retry loop now lives in
+	// EcclesApplication#onAccepted); onConnected() above inlines the same retry loop directly
+	// over reader.read() since it is still called from here.
 
 	/**
 	 * Gate for premium/"Pro"-only actions. Callers use the pattern

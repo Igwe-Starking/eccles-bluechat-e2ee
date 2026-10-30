@@ -147,11 +147,28 @@ public class AccountActivity extends EcclesOptions {
 		try{
 		if(rq == SELECT_CAM && res == RESULT_OK){
 			Bitmap b= (Bitmap)d.getExtras().get("data");
-				ClassicCompat.saveDeviceIcon("Eccles",EcclesIcon.convertToBytes(b),this);
-				ClassicCompat.clearRecipients(this);
+				byte[] small= EcclesIcon.prepareIcon(b);
+				if(small != null && ClassicCompat.saveDeviceIcon("Eccles",small,this)){
+					ClassicCompat.clearRecipients(this);
+					((starking.eccles.bluechat.EcclesApplication) getApplication()).broadcastIcon();
+					updateImage();
+				} else {
+					// This used to fail completely silently: saveDeviceIcon() was void, so a
+					// failure (most commonly a large photo) had no way to signal back here at
+					// all - nothing thrown, nothing shown, the picture just didn't change with
+					// no explanation. It now reports success/failure explicitly.
+					Toast.makeText(this,"Couldn't use that picture. Please choose a different photo.",Toast.LENGTH_LONG).show();
+				}
 		} else if(rq == SELECT_FILE && res == RESULT_OK){
-			ClassicCompat.saveDeviceIcon("Eccles",EcclesStorage.getBytes(d.getData(),this),this);
-			ClassicCompat.clearRecipients(this);
+			// Any size of photo is accepted: it is shrunk to a small square picture first.
+			byte[] small= EcclesIcon.prepareIcon(this,d.getData());
+			if(small != null && ClassicCompat.saveDeviceIcon("Eccles",small,this)){
+				ClassicCompat.clearRecipients(this);
+					((starking.eccles.bluechat.EcclesApplication) getApplication()).broadcastIcon();
+				updateImage();
+			} else {
+				Toast.makeText(this,"Couldn't use that picture. Please choose a different photo.",Toast.LENGTH_LONG).show();
+			}
 		}
 		} catch (Exception e){
 			Log.e("Eccles","image update failed",e);

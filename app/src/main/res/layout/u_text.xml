@@ -2,11 +2,11 @@
 xmlns:app="http://schemas.android.com/apk/res-auto"
 android:layout_width="match_parent"
 android:layout_height="wrap_content"
-android:layout_marginBottom="15dp">
+android:layout_marginBottom="6dp">
 
 <ImageView
-android:layout_height="50dp"
-android:layout_width="50dp"
+android:layout_height="40dp"
+android:layout_width="40dp"
 android:id="@+id/icon"
 android:layout_margin="10dp"
 app:layout_constraintLeft_toLeftOf="parent" 
@@ -17,18 +17,22 @@ android:layout_width="wrap_content"
 android:layout_height="wrap_content"
 android:orientation="vertical"
 android:id="@+id/text_p"
-android:background="@drawable/out_message_bg"
+android:background="@drawable/bubble_them"
 app:layout_constraintBottom_toTopOf="@+id/time"
 app:layout_constraintLeft_toRightOf="@+id/icon">
 
 <TextView
 android:id="@+id/text"
 android:layout_height="wrap_content"
-android:layout_width="150dp"
-android:typeface="serif"
-android:padding="5dp"
-android:textSize="13dp"
-android:textColor="#337" />
+android:layout_width="wrap_content"
+			android:maxWidth="250dp"
+			android:minWidth="48dp"
+android:paddingLeft="12dp"
+			android:paddingRight="12dp"
+			android:paddingTop="8dp"
+			android:paddingBottom="2dp"
+android:textSize="15sp"
+android:textColor="@color/bubble_them_text" />
 
 <TextView
 android:id="@+id/status"
@@ -36,7 +40,7 @@ android:layout_width="match_parent"
 android:layout_height="wrap_content"
 android:textAlignment="center"
 android:gravity="end"
-android:textSize="10sp" />
+android:textSize="11sp" />
 
 
 </LinearLayout>
@@ -46,10 +50,10 @@ android:id="@+id/time"
 android:layout_height="wrap_content"
 android:layout_width="wrap_content"
 android:textAlignment="center"
-android:textColor="#333"
+android:textColor="@color/message_meta_text"
 app:layout_constraintLeft_toRightOf="@+id/icon"
 android:layout_marginLeft="25dp"
-android:textSize="8sp"
+android:textSize="11sp"
 app:layout_constraintTop_toBottomOf="@+id/text_p" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

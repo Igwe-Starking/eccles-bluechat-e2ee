@@ -3,36 +3,36 @@
 	<Preference
 		app:title="Chatting"
 		app:icon="@drawable/ic_chat"
-		app:summary="to start a chat tap the chat button at the bottom right corner of the chat fragment,select the device you want to chat the device must be corrently on bluechat and must not be farther than 15 meters from you,it is recommended to always select from the active or available devices in the select screen,bluechat will automatically initiate connection with the device you selected,if connection was successful you will be automatically launched into a chat screen and the connected device will be notified of your connection to it" />
+		app:summary="To start a chat, tap the chat button at the bottom right of the Chats tab and choose a device. The device must have Bluechat open and be within about 15 meters of you. For the best results, pick from the Active or Available devices in the list. Bluechat connects automatically, and once connected you are taken straight to the chat screen. The other device is told that you have connected." />
 
 	<Preference
 		app:title="Sending files"
 		app:icon="@drawable/file"
-		app:summary="when on chat screen you can send images,audios or videos to a connected device,these files can be selected from storage or captured directly from the camera,to capture a photo or video tap the camera icon at the bottom of the chat screen,select the type of file you want,bluechat will automatically open the camera app for you,once captured bluechat will automatically send captured data to the connected device\nTo select from storage tap the folder icon at the bottom of the chat screen,select the type of file you want bluechat will automatically open selected file storage for you,once selected bluechat will automatically send selected data to the connected device\nNOTE: chat buttons only appear if the device you are chatting is active" />
+		app:summary="In a chat you can send photos, audio and videos to the connected device.\nTo capture one, tap the camera icon next to the message box, choose Take a photo or Record a video, and Bluechat opens your camera app. When you are done, the file is sent automatically.\nTo send an existing file, tap the folder icon next to the message box, choose Photo, Video or Audio, and pick the file. It is sent automatically.\nNote: the chat buttons only work while the other device is active." />
 	
 	<Preference
-		app:title="Voice Note"
+		app:title="Voice notes"
 		app:icon="@android:drawable/presence_audio_busy"
-		app:summary="Tap and hold on the mic button located at the bottom right corner of the chat screen to record,release it to send\nNOTE: you can only record voice note if the chatbox is empty" />
+		app:summary="Press and hold the mic button to record, then release to send.\nSlide left while holding to cancel. Slide up to lock the recording so you can let go; then tap the send arrow to send it, or the bin to discard it.\nNote: you can only record a voice note while the message box is empty." />
 		
 	<Preference
 		app:title="Calling"
 		app:icon="@drawable/ic_call"
-		app:summary="to start a call swipe right to the calls fragment from the start screen,tap the call button located at the bottom right corner of the calls fragment,select the device you want to call,if the device is not active bluechat will automatically initiate connection with the device,if the connection was successful bluechat will automatically initiate a call with the connected device and you will be automatically launched into the call screen\nNOTE: you can still navigate outside the call screen while in bluechat calls" />
+		app:summary="To make a call, open the Calls tab, tap the call button at the bottom right and choose a device. If the device is not connected yet, Bluechat connects first and then starts the call.\nNote: you can leave the call screen and keep using Bluechat while the call continues." />
 		
 	<Preference
-		app:title="Video Calling"
+		app:title="Video calling"
 		app:icon="@drawable/ic_video_call"
-		app:summary="to start a video call double swipe to the video calls fragment from the start screen,tap the video button located at the bottom right corner of the video calls fragment,select the device you want to video call,if the device is not active bluechat will automatically initiate connection with the device,if the connection was successful bluechat will automatically initiate a video call with the connected device and you will be automatically launched into the video call screen\nNOTE: unlike the calls screen if you navigate outside the video call call screen the call automatically quits this is because bluetooth video calling is a heavy task and such not recommended to run in the background" />
+		app:summary="To make a video call, open the Video Calls tab, tap the video button at the bottom right and choose a device. If the device is not connected yet, Bluechat connects first and then starts the call.\nNote: unlike voice calls, a video call ends if you leave the video call screen. Bluetooth video is demanding and should not run in the background." />
 		
 	<Preference
-		app:title="Icon"
+		app:title="Profile photo"
 		app:icon="@drawable/user"
-		app:summary="tap the icon image at the top left corner of the start screen to open your profile settings,you can select icon from camera or from storage,to select icon tap the camera button below the icon image at the top of your profile screen,tap the popup camera icon to capture from camera or the popup folder icon to select from file\nNOTE: any device that connects to you automatically receives your icon" />
+		app:summary="Tap your photo at the top left of the main screen to open your profile. Tap the camera button on the photo to take a new picture or choose one from your files.\nNote: any device that connects to you automatically receives your photo." />
 		
 	<Preference
 		app:title="Blocking"
 		app:icon="@android:drawable/ic_lock_lock"
-		app:summary="if you dont want a device to chat,call or video call you,from the select screen tap and hold on the device and select block from the popup options,confirm the alert dialog and the device will be blocked\nNOTE: blocking the device does not prevent it from discovering and connecting to you" />
+		app:summary="To block a device, touch and hold it in the device list, choose Block and confirm. A blocked device can no longer chat with you, call you or video call you.\nNote: blocking does not stop a device from finding or connecting to you." />
 		
 </PreferenceScreen>

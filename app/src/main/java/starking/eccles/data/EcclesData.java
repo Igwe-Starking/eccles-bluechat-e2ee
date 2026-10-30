@@ -96,9 +96,9 @@ public class EcclesData extends SQLiteOpenHelper {
     public boolean insert(BluetoothDevice device, String lastMessage) {
         try {
             ContentValues values = new ContentValues();
-            values.put(COLUMN_NAME, device.getName());
+            values.put(COLUMN_NAME, starking.eccles.util.PeerStore.displayName(device));
             values.put(COLUMN_ADDRESS, device.getAddress());
-            values.put(COLUMN_IMAGE, EcclesIcon.convertToBytes(ClassicCompat.queryDeviceIcon(device.getAddress(), app)));
+            values.put(COLUMN_IMAGE, EcclesIcon.prepareIcon(ClassicCompat.queryDeviceIcon(device.getAddress(), app)));
             values.put(COLUMN_LAST_MESSAGE, lastMessage);
             values.put(COLUMN_DATE, FriendlyDate.format());
             return getWritableDatabase().insertWithOnConflict(TABLE, null, values, SQLiteDatabase.CONFLICT_REPLACE) != -1;
@@ -110,9 +110,15 @@ public class EcclesData extends SQLiteOpenHelper {
 
     /** @return true if a row was actually updated, false if the address wasn't found or an error occurred. */
     public boolean updateNewMessage(String address, String lastMessage) {
+        return updateNewMessage(address, lastMessage, null);
+    }
+
+    /** Like {@link #updateNewMessage(String, String)} but stamps the given message date (so
+     *  re-pointing the preview at an older message doesn't show "just now"); null = now. */
+    public boolean updateNewMessage(String address, String lastMessage, String date) {
         ContentValues values = new ContentValues();
         values.put(COLUMN_LAST_MESSAGE, lastMessage);
-        values.put(COLUMN_DATE, FriendlyDate.format());
+        values.put(COLUMN_DATE, date != null ? date : FriendlyDate.format());
         // SQLiteDatabase.update() returns the affected-row count (0 if nothing matched), never
         // -1 - only insert() uses -1 as a failure sentinel. ">0" is the correct check for
         // "did this actually update something".
@@ -122,6 +128,17 @@ public class EcclesData extends SQLiteOpenHelper {
             android.util.Log.e("EcclesData", "updateNewMessage", e);
             return false;
         }
+    }
+
+    /** @return the addresses of everyone we have a conversation/contact row for. */
+    public java.util.Set<String> addresses() {
+        java.util.HashSet<String> set = new java.util.HashSet<>();
+        try (Cursor c = getReadableDatabase().query(TABLE, new String[]{COLUMN_ADDRESS}, null, null, null, null, null)) {
+            while (c.moveToNext()) set.add(c.getString(0));
+        } catch (Exception e) {
+            android.util.Log.e("EcclesData", "addresses", e);
+        }
+        return set;
     }
 
     /** @return every contact, most recently updated first, or null if there are none. */
@@ -142,7 +159,7 @@ public class EcclesData extends SQLiteOpenHelper {
                         app.currentActivity,
                         R.layout.pojo_view,
                         EcclesIcon.resize(60, 60,
-                                EcclesIcon.convertToBitmap(cursor.getBlob(cursor.getColumnIndexOrThrow(COLUMN_IMAGE))),
+                                ClassicCompat.queryDeviceIcon(device.getAddress(), app),
                                 app.currentActivity),
                         false,
                         preview,

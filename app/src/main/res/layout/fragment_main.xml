@@ -9,9 +9,9 @@
 		android:textAlignment="center"
 		android:id="@+id/tipText"
 		android:gravity="center"
-		android:text="tap and hold a chat for options"
-		android:textSize="10sp"
-		android:textColor="#339"
+		android:text="Tap and hold a chat for options"
+		android:textColor="@color/hint_text"
+		android:textSize="12sp"
 		app:layout_constraintTop_toTopOf="parent"
 		app:layout_constraintLeft_toLeftOf="parent"
 		app:layout_constraintRight_toRightOf="parent"
@@ -30,8 +30,38 @@
 		app:layout_constraintTop_toBottomOf="@+id/tipText"
 		app:layout_constraintBottom_toBottomOf="parent"
 		android:layout_margin="3dp"
+		android:paddingBottom="88dp"
 		android:clipToPadding="false" />
-		
+
+	<!-- Shown/hidden in code (MainFragment#updateEmptyState) instead of being a whole separate
+		 layout swapped in only at fragment-creation time - that old approach is what caused the
+		 "shows no chats until you swipe away and back" bug: once this fragment's view was
+		 created showing the empty state, there was no RecyclerView in that layout at all for a
+		 later refresh() to populate, so new data had nowhere to go until the fragment was
+		 destroyed and recreated (which a far-enough ViewPager swipe does, and a fresh
+		 onCreateView does see the data). Living in the same layout as fragment_list means
+		 refresh() can just toggle visibility instead of needing a whole recreation. -->
+	<!-- Centered directly in the parent (top/bottom both to parent), not chained through
+		 tipText/start_button - chaining through tipText (which collapses to a point, not simply
+		 removed, when GONE - see its own comment above) made the resolved vertical bias
+		 unpredictable instead of reliably centering in the visible area, which is what pushed
+		 "No Chats" down near the bottom instead of the middle of the screen. -->
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center"
+		android:textStyle="bold"
+		android:textSize="22sp"
+		android:alpha="0.9"
+		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintLeft_toLeftOf="parent"
+		app:layout_constraintRight_toRightOf="parent"
+		app:layout_constraintBottom_toBottomOf="parent"
+		android:text="Nothing here yet"
+		android:id="@+id/empty_text"
+		android:textColor="@color/empty_state_text"
+		android:visibility="gone" />
+
 	<com.google.android.material.floatingactionbutton.FloatingActionButton
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
@@ -39,8 +69,9 @@
 		android:layout_margin="20dp"
 		app:layout_constraintRight_toRightOf="parent"
 		app:layout_constraintBottom_toBottomOf="parent"
-		android:contentDescription="start button"
-		app:backgroundTint="?attr/colorPrimaryVariant"
+		android:contentDescription="Start new"
+		app:backgroundTint="@color/accent"
+		app:tint="@color/white"
 		android:id="@+id/start_button" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
