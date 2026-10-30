@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem privately
+    url: https://github.com/Igwe-Starking/eccles-bluechat-e2ee/security/advisories/new
+    about: Do not open a public issue for vulnerabilities. See SECURITY.md.
+  - name: Support the project
+    url: https://paystack.shop/pay/support-bluechat-t1
+    about: Help fund a proper dev laptop and a Google Play developer account.

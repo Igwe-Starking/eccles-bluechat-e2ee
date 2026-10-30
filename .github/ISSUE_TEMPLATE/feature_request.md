@@ -1,19 +1,11 @@
 ---
 name: Feature request
-about: Suggest an idea or improvement
-title: "[Feature] "
+about: Suggest an improvement
 labels: enhancement
 ---
 
 **What problem does this solve?**
-Describe the use case or gap this addresses.
 
-**Proposed solution**
-What you'd like to see happen.
+**What would you like Bluechat to do?**
 
-**Alternatives considered**
-Any other approaches you thought about.
-
-**Security implications**
-If this touches `crypto/`, `data/`, or the wire protocol in `stream/`,
-describe how it interacts with the existing trust/encryption model.
+**Does it need the internet?** Bluechat ships without the INTERNET permission and that will not change, so ideas should work over Bluetooth.
