@@ -33,6 +33,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.Toast;
+import android.widget.TextView;
 import androidx.appcompat.view.ActionMode;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.appcompat.widget.Toolbar;
@@ -99,14 +100,14 @@ public class ChatActivity extends EcclesActivity {
 		setContentView(R.layout.activity_chat);
 		device= getIntent().getExtras()!=null ? getIntent().getExtras().getParcelable("device") : null;
 		if(device == null){
-			Toast.makeText(this,"invalid bluetooth device",1).show();
+			Toast.makeText(this,"Couldn't open this chat. Please pick the device again.",Toast.LENGTH_SHORT).show();
 			finish();
 			return;
 		}
 
 		Toolbar toolbar= findViewById(R.id.chat_tools);
 		setSupportActionBar(toolbar);
-		getSupportActionBar().setTitle(device.getName());
+		getSupportActionBar().setTitle(starking.eccles.util.PeerStore.displayName(device));
 		getSupportActionBar().setIcon(EcclesIcon.resize(60,60,ClassicCompat.queryDeviceIcon(device.getAddress(),this),this));
 		getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
@@ -115,6 +116,9 @@ public class ChatActivity extends EcclesActivity {
 		send= findViewById(R.id.send_bt);
 		cardView= findViewById(R.id.input_parent);
 		input= findViewById(R.id.input);
+		// Bring back whatever was typed but never sent the last time this chat was open.
+		String savedDraft= starking.eccles.util.DraftStore.get(this,device.getAddress());
+		if(savedDraft != null && input.getText().length() == 0) input.setText(savedDraft);
 		recDur= findViewById(R.id.rec_dur);
 		chatList= findViewById(R.id.chat_list);
 
@@ -145,7 +149,17 @@ public class ChatActivity extends EcclesActivity {
 		ClassicCompat.clearUnreads(this,device.getAddress());
 		if(adapter == null) adapter= new ChatAdapter(this);
 
-		chatList.setAdapter(adapter);
+		// Guarded, not unconditional: this is the actual reason returning from viewing an
+		// image/video always landed back at the newest message, even if the viewed image was
+		// right at the top of a long scrolled-up chat. onStart() (unlike onCreate()) re-runs
+		// every time this Activity resumes, including right after ViewActivity finishes and
+		// control returns here - and RecyclerView#setAdapter(), even with the exact same
+		// adapter instance, resets the layout manager's scroll position back to its initial
+		// state (the bottom, since chatList uses setStackFromEnd(true)). Only actually calling
+		// it the first time leaves whatever scroll position the user had alone.
+		if(chatList.getAdapter() != adapter){
+			chatList.setAdapter(adapter);
+		}
 		if(!isRead){
 		try{
 			app.chatStore.readAll(this,device.getAddress());
@@ -169,43 +183,97 @@ public class ChatActivity extends EcclesActivity {
 			}
 		});
 
-		send.setOnTouchListener((View v,MotionEvent mt)->{
+		recBar= findViewById(R.id.rec_bar);
+		recHint= findViewById(R.id.rec_hint);
+		lockHint= findViewById(R.id.lock_hint);
+		recCancelBtn= findViewById(R.id.rec_cancel);
+		recCancelBtn.setOnClickListener(v-> cancelRecording());
 
-			if (mt.getAction() == MotionEvent.ACTION_DOWN){
-					if(input.getText() == null || input.getText().length() <= 0){
-						recorder = recordVoice("Eccles123");
+		// WhatsApp-style voice notes: hold to record, release to send, slide left to cancel,
+		// slide up to lock (keeps recording hands-free; then tap send, or the trash to discard).
+		// With text in the box this returns false so the normal click (send text) runs instead.
+		send.setOnTouchListener((View v,MotionEvent mt)->{
+			float density= getResources().getDisplayMetrics().density;
+			switch(mt.getActionMasked()){
+				case MotionEvent.ACTION_DOWN:
+					if(recorder != null && recLocked){
+						// Recording is locked: this tap is the "send" press.
+						recGesture= true;
+						return true;
 					}
+					if(input.getText() != null && input.getText().length() > 0) return false;
+					recorder= recordVoice("Eccles123");
+					if(recorder == null) return true; // permission dialog showing, or failed to start
+					recLocked= false;
+					recGesture= true;
+					recDownX= mt.getRawX();
+					recDownY= mt.getRawY();
+					recStart= SystemClock.elapsedRealtime();
+					showRecordingUi();
+					if(v.getParent() != null) v.getParent().requestDisallowInterceptTouchEvent(true);
+					return true;
+
+				case MotionEvent.ACTION_MOVE:
+					if(!recGesture || recorder == null || recLocked) return recGesture;
+					float dx= mt.getRawX() - recDownX;
+					float dy= recDownY - mt.getRawY();
+					if(dy > 70 * density){
+						lockRecording();
+					} else if(dx < -90 * density){
+						recGesture= false;
+						cancelRecording();
+					} else {
+						recHint.setAlpha(Math.max(0.2f,1f + dx / (90 * density)));
+					}
+					return true;
+
+				case MotionEvent.ACTION_UP:
+				case MotionEvent.ACTION_CANCEL:
+					if(!recGesture) return false;
+					recGesture= false;
+					if(recorder == null) return true;
+					if(recLocked){
+						// Lock happened during this very touch (finger lifting after the slide-up):
+						// keep recording. A later tap on the button is what sends.
+						if(recLockedThisTouch){ recLockedThisTouch= false; return true; }
+						if(mt.getActionMasked() == MotionEvent.ACTION_UP) sendRecording();
+						return true;
+					}
+					if(mt.getActionMasked() == MotionEvent.ACTION_CANCEL){
+						cancelRecording();
+					} else if(SystemClock.elapsedRealtime() - recStart < 600){
+						cancelRecording();
+						Toast.makeText(this,"Hold the mic button to record, release to send",Toast.LENGTH_SHORT).show();
+					} else {
+						sendRecording();
+					}
+					return true;
 			}
-			return super.onTouchEvent(mt);
+			return false;
 		});
 
 		send.setOnClickListener((View view)->{
-			if(recorder != null){
-				File u= getVoice(recorder);
-				byte[] b= null;
-				try{
-					b= Files.readAllBytes(u.toPath());
-					sendMessage(EcclesMessage.SUBTYPE_AUDIO,b);
-				} catch (Exception e){
-					Log.e("Eccles","invalid file",e);
-					Toast.makeText(this,"failed to send audio "+"\n"+e,1).show();
-				}
-
-				recorder= null;
-			} else {
-				sendMessage(EcclesMessage.SUBTYPE_TEXT,input.getText().toString().getBytes(StandardCharsets.UTF_8));
+			String text = input.getText().toString();
+			if (!text.isEmpty()) {
+				sendMessage(EcclesMessage.SUBTYPE_TEXT, text.getBytes(StandardCharsets.UTF_8));
 				input.setText(null);
 			}
 		});
 
 		if("offline".equals(sbt)){
-
-			startIntermittent();
 			toggleInputButton(false);
 		} else {
 			activateButton();
 			buttonActivated= true;
 		}
+		// Unconditional now, not just when starting out offline: this used to only ever run as
+		// a reconnect-retry loop for a chat that was already offline when opened, so a chat
+		// that went from active to actually disconnected *while open* had no periodic fallback
+		// at all - only the onConnectionFailed/performDisconnect callbacks (which are correct
+		// now, see their comments about BluetoothDevice reference-vs-address equality, but this
+		// stays as a safety net in case anything else ever slips past them) could catch it, and
+		// if those ever missed it, the status just stayed stale until you left and came back.
+		startIntermittent();
 
 		super.onStart();
 
@@ -219,11 +287,12 @@ public class ChatActivity extends EcclesActivity {
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu m){
-		m.add("call").setIcon(R.drawable.ic_call).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-		m.add("video").setIcon(R.drawable.ic_video_call).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+		m.add("Voice call").setIcon(R.drawable.ic_call).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+		m.add("Video call").setIcon(R.drawable.ic_video_call).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
 		m.add(app.isConnected(device.getAddress()) ?"Disconnect" : "Connect");
-		m.add(block(device.getAddress(),BLOCK_CHECK_BLOCK)? "unBlock":"Block");
-		m.add("Clear Chat");
+		m.add(block(device.getAddress(),BLOCK_CHECK_BLOCK)? "Unblock":"Block");
+		m.add("Rename contact");
+		m.add("Clear chat");
 		return true;
 	}
 
@@ -235,10 +304,10 @@ public class ChatActivity extends EcclesActivity {
 		}
 
 		switch (item.getTitle().toString()){
-			case "call":
+			case "Voice call":
 				call(false);
 				return false;
-			case "video":
+			case "Video call":
 				call(true);
 				return false;
 			case "Disconnect":
@@ -247,10 +316,13 @@ public class ChatActivity extends EcclesActivity {
 			case "Block":
 				block(device.getAddress(),BLOCK_BLOCK);
 				return false;
-			case "Clear Chat":
+			case "Rename contact":
+				renamePeer(device);
+				return false;
+			case "Clear chat":
 				clear();
 				return false;
-			case "unBlock":
+			case "Unblock":
 				block(device.getAddress(),BLOCK_UNBLOCK);
 				return false;
 			case "Connect":
@@ -263,13 +335,17 @@ public class ChatActivity extends EcclesActivity {
 		if(intermittent == null){
 			intermittent= Executors.newScheduledThreadPool(1);
 			intermittent.scheduleAtFixedRate(()->{
-				if(!app.isConnected(device.getAddress())){
-					runOnUiThread(()->{
-						getSupportActionBar().setSubtitle("connecting");
+				boolean connected= app.isConnected(device.getAddress());
+				runOnUiThread(()->{
+					if(!connected){
+						updateStatus("offline");
+						getSupportActionBar().setSubtitle("Connecting\u2026");
 						connect(device,false);
-					});
-				}
-			},10,20,TimeUnit.SECONDS);
+					} else {
+						updateStatus("active");
+					}
+				});
+			},10,10,TimeUnit.SECONDS);
 		}
 	}
 
@@ -283,13 +359,53 @@ public class ChatActivity extends EcclesActivity {
 	@Override
 	public void onStop(){
 		stopIntermittent();
+		if(recorder != null) cancelRecording();
+		saveDraft();
 		super.onStop();
+	}
+
+	/** Keeps unsent text as a draft: shown in the Chats tab and restored into the box next
+	 *  time this chat opens. Cleared once the box is empty (i.e. after sending). */
+	private void saveDraft(){
+		try{
+			if(input == null || device == null) return;
+			String text= input.getText() == null ? null : input.getText().toString();
+			String address= device.getAddress();
+			boolean has= text != null && !text.trim().isEmpty();
+			starking.eccles.util.DraftStore.set(this,address,text);
+
+			// The Chats tab only lists contacts that have a chat row, so a brand-new chat with
+			// just a draft needs one (empty) to show "Draft" under; remove it again if the draft
+			// is cleared before anything was ever sent.
+			starking.eccles.Surface.EcclesPojo existing= null;
+			starking.eccles.Surface.EcclesPojo[] rows= app.chatBase.read(starking.eccles.Surface.EcclesPojo.CHAT_CLIENT);
+			if(rows != null){
+				for(starking.eccles.Surface.EcclesPojo r: rows){
+					if(r != null && address.equals(r.tag)){ existing= r; break; }
+				}
+			}
+			if(has && existing == null){
+				app.chatBase.insert(device,"");
+			} else if(!has && existing != null && existing.status != null && existing.status.startsWith("\b")){
+				app.chatBase.delete(address);
+			}
+		} catch(Exception e){
+			Log.e("ChatActivity","saveDraft failed",e);
+		}
 	}
 
 	@Override
 	public void onConnectionFailed(BluetoothDevice device,String r){
 		runOnUiThread(()->{
-		if(this.device== device){
+		// BluetoothDevice doesn't override equals()/hashCode(), so it falls back to reference
+		// identity - this used to be "==", which meant it only ever matched if `device` here
+		// happened to be the literal same object instance as this.device (set once, from the
+		// launching Intent's extra). A device handed back from anywhere else - Reader's socket,
+		// a fresh connection attempt, etc. - is a distinct Parcelable-reconstructed object for
+		// the same physical device, so this essentially never actually matched, and the status
+		// label just silently never updated to "offline". Comparing by address is the correct,
+		// standard way to check "is this the same physical device".
+		if(this.device != null && device != null && this.device.getAddress().equals(device.getAddress())){
 			updateStatus("offline");
 		}
 		});
@@ -298,7 +414,7 @@ public class ChatActivity extends EcclesActivity {
 	@Override
 	public void onConnected(BluetoothSocket socket){
 		runOnUiThread(()->{
-		if(socket.getRemoteDevice() == this.device){
+		if(socket.getRemoteDevice() != null && this.device != null && socket.getRemoteDevice().getAddress().equals(this.device.getAddress())){
 			updateStatus("active");
 			toggleInputButton(true);
 
@@ -312,7 +428,7 @@ public class ChatActivity extends EcclesActivity {
 	}
 
 	private void toggleButtonIcon(boolean sen){
-		int ic= sen ?android.R.drawable.ic_menu_send : android.R.drawable.presence_audio_away;
+		int ic= sen ? R.drawable.ic_send : R.drawable.ic_mic;
 		send.setImageResource(ic);
 	}
 
@@ -418,9 +534,41 @@ public class ChatActivity extends EcclesActivity {
 		}
 	}
 
+	private String pendingCarmAction;
+	private int pendingCarmRc;
+
 	private void openCarm(String w,int rc){
-		Intent in= new Intent(w);
-		ActivityCompat.startActivityForResult(this,in,rc,null);
+		// The manifest declares CAMERA, and Android refuses to start the camera app's capture
+		// screen on our behalf (SecurityException, which crashed the app) while that
+		// permission is declared but not granted/revoked - so it has to be granted first.
+		if(!requestPermission(new String[]{Manifest.permission.CAMERA},CAMERA_PERM)){
+			pendingCarmAction= w;
+			pendingCarmRc= rc;
+			return;
+		}
+		try{
+			Intent in= new Intent(w);
+			ActivityCompat.startActivityForResult(this,in,rc,null);
+		} catch(Exception e){
+			Log.e("ChatActivity","unable to open camera",e);
+			Toast.makeText(this,"Unable to open the camera",Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	@Override
+	public void onRequestPermissionsResult(int rc,String[] perm,int[] gr){
+		super.onRequestPermissionsResult(rc,perm,gr);
+		if(rc == CAMERA_PERM){
+			String action= pendingCarmAction;
+			pendingCarmAction= null;
+			if(action != null){
+				if(gr.length > 0 && gr[0] == android.content.pm.PackageManager.PERMISSION_GRANTED){
+					openCarm(action,pendingCarmRc);
+				} else {
+					Toast.makeText(this,"Camera permission is needed to take photos or videos",Toast.LENGTH_LONG).show();
+				}
+			}
+		}
 	}
 
 	private void selectStuff(String s,int rc){
@@ -428,6 +576,64 @@ public class ChatActivity extends EcclesActivity {
 		in.setType(s);
 		in.setAction(Intent.ACTION_GET_CONTENT);
 		ActivityCompat.startActivityForResult(this,in,rc,null);
+	}
+
+	private View recBar,lockHint,recCancelBtn;
+	private TextView recHint;
+	private boolean recLocked= false,recGesture= false,recLockedThisTouch= false;
+	private float recDownX,recDownY;
+	private long recStart;
+
+	private void showRecordingUi(){
+		cardView.setVisibility(View.INVISIBLE);
+		recBar.setVisibility(View.VISIBLE);
+		recHint.setVisibility(View.VISIBLE);
+		recHint.setAlpha(1f);
+		recCancelBtn.setVisibility(View.GONE);
+		lockHint.setVisibility(View.VISIBLE);
+	}
+
+	private void hideRecordingUi(){
+		recBar.setVisibility(View.GONE);
+		lockHint.setVisibility(View.GONE);
+		recCancelBtn.setVisibility(View.GONE);
+		cardView.setVisibility(View.VISIBLE);
+		recLocked= false;
+		recLockedThisTouch= false;
+		toggleButtonIcon(input.getText() != null && input.getText().length() > 0);
+	}
+
+	private void lockRecording(){
+		recLocked= true;
+		recLockedThisTouch= true;
+		lockHint.setVisibility(View.GONE);
+		recHint.setVisibility(View.GONE);
+		recCancelBtn.setVisibility(View.VISIBLE);
+		toggleButtonIcon(true); // send arrow: tapping it now sends the recording
+		send.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+	}
+
+	private void sendRecording(){
+		if(recorder == null) return;
+		File u= getVoice(recorder);
+		recorder= null;
+		hideRecordingUi();
+		try{
+			byte[] b= Files.readAllBytes(u.toPath());
+			sendMessage(EcclesMessage.SUBTYPE_AUDIO,b);
+		} catch (Exception e){
+			Log.e("Eccles","invalid file",e);
+			Toast.makeText(this,"Couldn't send the voice message. Please try again.",Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void cancelRecording(){
+		if(recorder != null){
+			File u= getVoice(recorder);
+			recorder= null;
+			try{ if(u != null) u.delete(); } catch(Exception ignored){}
+		}
+		hideRecordingUi();
 	}
 
 	public MediaRecorder recordVoice(String n){
@@ -497,7 +703,7 @@ public class ChatActivity extends EcclesActivity {
 			String storedPath= EcclesStorage.getDir(message.data,true,this,message.subtype);
 			if(storedPath == null){
 				Log.e("Eccles","failed to store outgoing media locally, aborting send");
-				Toast.makeText(this,"Failed to save media, message not sent",Toast.LENGTH_SHORT).show();
+				Toast.makeText(this,"Couldn't save the file, so it wasn't sent",Toast.LENGTH_SHORT).show();
 				return;
 			}
 			m.setData(storedPath.getBytes());
@@ -506,18 +712,19 @@ public class ChatActivity extends EcclesActivity {
 		}
 		m.setDate(FriendlyDate.format());
 		try{
-			if(!app.chatStore.insert(ClassicCompat.purifyAddress(device.getAddress()),"",m)){
+			m.setStoreId(app.chatStore.insertRow(ClassicCompat.purifyAddress(device.getAddress()),"",m));
+			if(m.storeId == -1){
 				// insert() now correctly fails (returns false) rather than silently storing an
 				// empty row when at-rest encryption fails - see ChatBase#insert. The message
 				// still gets sent over the wire regardless (that's a separate, already-in-flight
 				// operation), but it won't survive an app restart if this failed, so at least
 				// log it for diagnosability rather than silently losing local history.
-				Log.w("Eccles","failed to persist locally-sent message for "+device.getName());
+				Log.w("Eccles","failed to persist locally-sent message for "+starking.eccles.util.PeerStore.displayName(device));
 			}
 		} catch (Exception e){ android.util.Log.e("ChatActivity", "Suppressed exception", e); }
 		if(!app.chatBase.insert(device,getSent(m,this))){
 			if(!app.chatBase.updateNewMessage(device.getAddress(),getSent(m,this))){
-				Log.w("Eccles","failed to update message sent to "+device.getName());
+				Log.w("Eccles","failed to update message sent to "+starking.eccles.util.PeerStore.displayName(device));
 			}
 		}
 
@@ -528,7 +735,11 @@ public class ChatActivity extends EcclesActivity {
 	}
 	@Override
 	public void sent(BluetoothSocket s,EcclesMessage m){
-		ChatPojo p= adapter.findPojoWithTag(m.sender);
+		// See EcclesMessage#localId's doc: this used to look up by m.sender, which is always
+		// null for an outgoing message - the lookup could never match, so this whole block
+		// (including persisting "sent" to chatStore) silently never ran, and the row stayed on
+		// "sending" forever regardless of how long you waited.
+		ChatPojo p= adapter.findPojoWithTag(String.valueOf(m.localId));
 		if(p != null){
 			p.setStatus("sent");
 			adapter.notifyDataSetChanged();
@@ -539,13 +750,13 @@ public class ChatActivity extends EcclesActivity {
 	}
 	@Override
 	public void sentFailed(BluetoothSocket s,EcclesMessage m,String r){
-		ChatPojo p= adapter.findPojoWithTag(m.sender);
+		ChatPojo p= adapter.findPojoWithTag(String.valueOf(m.localId));
 		if(p != null){
 			p.setStatus("failed");
 			adapter.notifyDataSetChanged();
 			app.chatStore.updateStatus(device.getAddress(),"failed",p.index);
 		}
-		Log.w("Eccles","failed to send message to "+s.getRemoteDevice().getName()+"\n"+r);
+		Log.w("Eccles","failed to send message to "+starking.eccles.util.PeerStore.displayName(s.getRemoteDevice())+"\n"+r);
 	}
 
 	private void updateAdapter(ChatPojo p){
@@ -562,7 +773,7 @@ public class ChatActivity extends EcclesActivity {
 		try{
 			u= in.getData();
 		} catch (Exception fe){
-			Toast.makeText(this,"the selected file does not exist",1).show();
+			Toast.makeText(this,"That file could not be found",Toast.LENGTH_SHORT).show();
 			return;
 		}
 		if(u== null) return;
@@ -571,13 +782,25 @@ public class ChatActivity extends EcclesActivity {
 			long sizeBytes= EcclesStorage.getFileSize(this,u);
 			String s= sizeBytes>=0 ? Formatter.formatShortFileSize(this,sizeBytes) : "unknown";
 			SpannableStringBuilder b= new SpannableStringBuilder()
-					.append("File Larger than expected\n",new ForegroundColorSpan(Color.RED),0)
-					.append("Files Larger than 3MB is not recommended to be sent using this platform,this is because bluetooth is slow in communication and large files may delay you from chatting and calling devices until they are sent\nif the receiver goes out of range during the receiving process the file will never be received at all\nif you intend to send large files use file sharing app instead")
-					.append("File:"+n+"\n"+"Size:"+s,new ForegroundColorSpan(Color.WHITE),0);
+					.append("This is a large file\n",new ForegroundColorSpan(Color.RED),0)
+					.append("Files over 3 MB can take a long time over Bluetooth, and chats and calls with this device may be slow until it finishes.\nIf the other person moves out of range while it is sending, the file won't arrive.\nFor big files, a file-sharing app works better.\n\n")
+					.append("File: "+n+"\nSize: "+s,new ForegroundColorSpan(Color.WHITE),0);
 
 			final Uri u1= u;
-			showDialog(b.toString(),"Send","Forget","Always Send",()->{
-				if(progressDialog.checked){
+			if(app.pref.getBoolean("no_alert",false)){
+				// showDialog() deliberately shows nothing at all when alerts are turned off, so
+				// its "Send" callback would never run and the file would just silently vanish
+				// with no feedback - exactly the sort of silent failure that should be reported.
+				Toast.makeText(this,"This file is over 3 MB, so it wasn't sent. Turn alerts back on in Settings to confirm large files.",Toast.LENGTH_LONG).show();
+				return;
+			}
+			showDialog(b.toString(),"Send anyway","Cancel","Don't ask again",()->{
+				// `dialog`, not `progressDialog`: showDialog() above is what creates and stores
+				// this confirmation dialog (and its "Always Send" checkbox). progressDialog is a
+				// completely different field, only ever assigned by showProgressDialog(), so
+				// here it was null - the "null object reference" crash on sending a large file.
+				// EcclesApplication already reads it the correct way (activity.dialog.checked).
+				if(dialog != null && dialog.checked){
 					app.pref.edit().putBoolean("send_large",true).apply();
 				}
 				sendData(u1,rc,res);
@@ -597,9 +820,14 @@ public class ChatActivity extends EcclesActivity {
 				sendMessage(EcclesMessage.SUBTYPE_AUDIO,EcclesStorage.getBytes(u,this));
 			}
 			} catch (Exception e){
+			// This used to only log - the far more common failure path (a regular Exception:
+			// a failed file read, a permission issue, etc.) had no user-facing feedback of any
+			// kind, only the much rarer OutOfMemoryError case below did. Matches "all uploads"
+			// silently failing with no alert.
 			Log.e("Eccles","file send failed",e);
+			Toast.makeText(this,"Couldn't send the file. Please try again.",Toast.LENGTH_LONG).show();
 		} catch (OutOfMemoryError oe){
-			Toast.makeText(this,"File too large cant send",1).show();
+			Toast.makeText(this,"This file is too large to send",Toast.LENGTH_SHORT).show();
 		}
 	}
 	private void sendMessage(int st,byte[] d){
@@ -614,8 +842,17 @@ public class ChatActivity extends EcclesActivity {
 		}
 	}
 
+	@Override
+	public void onPeerProfileChanged(String address){
+		if(device != null && device.getAddress().equals(address) && getSupportActionBar() != null){
+			getSupportActionBar().setTitle(starking.eccles.util.PeerStore.displayName(device));
+			getSupportActionBar().setIcon(EcclesIcon.resize(60,60,ClassicCompat.queryDeviceIcon(device.getAddress(),this),this));
+		}
+	}
+
 	public void performDisconnect(BluetoothDevice d){
-		if(this.device==d) toggleInputButton(false);
+		// Same reference-vs-address-equality issue as onConnectionFailed/onConnected above.
+		if(this.device != null && d != null && this.device.getAddress().equals(d.getAddress())) toggleInputButton(false);
 		onConnectionFailed(d,null);
 	}
 
@@ -631,13 +868,13 @@ public class ChatActivity extends EcclesActivity {
 					if(!cp.isSelected)selections.add(cp);
 					cp.setSelected(true);
 
-					m.setTitle(selections.size()+" Chats Selected");
+					m.setTitle(selections.size()+" selected");
 
-					MenuItem it1= mn.add("delete");
+					MenuItem it1= mn.add("Delete");
 					it1.setIcon(android.R.drawable.ic_menu_delete);
 					it1.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
 
-					MenuItem it2= mn.add("cancel");
+					MenuItem it2= mn.add("Cancel");
 					it2.setIcon(android.R.drawable.ic_delete);
 					it2.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
 
@@ -665,21 +902,21 @@ public class ChatActivity extends EcclesActivity {
 				@Override
 				public boolean onActionItemClicked(ActionMode m,MenuItem it){
 					switch(it.getTitle().toString()){
-						case "delete":
+						case "Delete":
 							if(selections.size()>0){
 								for(ChatPojo c:selections){
 									adapter.pojos.remove(c);
 
-									String ds= c.messenger.sender;
-									app.chatStore.delete(ds,c.index);
+									// Own messages have no sender, so the chat's address must come
+									// from the connected device, not from the message.
+									String ds= device.getAddress();
+									if(c.index > 0) app.chatStore.delete(ds,c.index);
 									adapter.notifyDataSetChanged();
 
 									if(c.uri != null){
 
 										if(!(deleteFile(c.uri.getPath()))){
-											Toast.makeText(ChatActivity.this,"Failed to delete file located at "+c.uri.toString(),1).show();
-										}else {
-											Toast.makeText(ChatActivity.this,"Deleted File at "+"\n"+c.uri.getPath(),1).show();
+											Toast.makeText(ChatActivity.this,"Couldn't remove the attached file from your phone",Toast.LENGTH_SHORT).show();
 										}
 									}
 
@@ -692,11 +929,11 @@ public class ChatActivity extends EcclesActivity {
 									}
 								}
 							} else {
-								Toast.makeText(ChatActivity.this,"No chat selected",1).show();
+								Toast.makeText(ChatActivity.this,"Nothing selected",Toast.LENGTH_SHORT).show();
 							}
 							m.finish();
 							return true;
-						case "cancel":
+						case "Cancel":
 							m.finish();
 							return true;
 					}
@@ -712,7 +949,7 @@ public class ChatActivity extends EcclesActivity {
 				cp.setSelected(false);
 			}
 
-			mode.setTitle(selections.size()+" Chats Selected");
+			mode.setTitle(selections.size()+" selected");
 		}
 	}
 
@@ -736,26 +973,18 @@ public class ChatActivity extends EcclesActivity {
 		app.chatBase.delete(device.getAddress());
 	}
 	public static String getSent(EcclesMessage m,Context c){
-
-		switch (m.subtype){
-			case EcclesMessage.SUBTYPE_TEXT:
-				return "you:"+new String(m.data);
-			case EcclesMessage.SUBTYPE_AUDIO:
-				return "you: sent an Audio ";
-			case EcclesMessage.SUBTYPE_IMAGE:
-				return "you: sent an image ";
-			case EcclesMessage.SUBTYPE_VIDEO:
-				return "you: sent a video ";
-			default:
-				return null;
-		}
+		String p= Reader.getPreview(m,c);
+		return p == null ? null : "You: "+p;
 	}
 
 	public void updateLast(){
+		if(adapter.pojos.isEmpty()) return;
 		ChatPojo pj= adapter.pojos.get(adapter.pojos.size()-1);
-		String lm= pj.messenger.subtype==EcclesMessage.SUBTYPE_TEXT?new String(pj.messenger.data):Reader.getMessage(pj.messenger,this);
+		String lm= Reader.getPreview(pj.messenger,this);
 		if(lm != null){
-			app.chatBase.updateNewMessage(device.getAddress(),pj.self ? "you: "+lm:lm);
+			// Use the message's own date so deleting a message doesn't make the older one look
+			// like it just arrived.
+			app.chatBase.updateNewMessage(device.getAddress(),pj.self ? "You: "+lm : lm,pj.messenger.date);
 		}
 	}
 

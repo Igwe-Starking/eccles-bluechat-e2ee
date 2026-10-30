@@ -1,28 +1,17 @@
 ---
 name: Bug report
-about: Report something broken
-title: "[Bug] "
+about: Something broke while chatting, calling or connecting
 labels: bug
 ---
 
-**Describe the bug**
-A clear description of what went wrong.
+**What you were doing**
 
-**Steps to reproduce**
-1.
-2.
-3.
+**What happened instead**
 
-**Expected behavior**
-What you expected to happen instead.
+**Environment**
+- Phone model and Android version (both devices if it is a connection problem):
+- Bluechat version (Settings > About, or the APK name):
+- Were the two devices already paired in Android Bluetooth settings?
+- Does it happen every time, or only sometimes?
 
-**Devices**
-- Device A: model, Android version
-- Device B (if this involves two paired devices): model, Android version
-
-**Logs / stack trace**
-Paste any relevant `adb logcat` output or crash trace here.
-
-**Additional context**
-Anything else worth knowing (e.g. does this happen every time, or only in
-the trust-changed / reconnect / call flow?).
+**Never paste private messages, photos or your fingerprint/identity key.**

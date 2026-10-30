@@ -1,0 +1,44 @@
+name: Release
+
+# Push a tag like v3.1.0 to build, sign, verify and publish a GitHub Release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Prepare Android SDK
+        run: bash scripts/setup-sdk.sh
+      - name: Build, sign, verify, checksum
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: bash scripts/release.sh "${GITHUB_REF_NAME#v}"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          notes="docs/RELEASE_v${version}.md"
+          [[ -f "$notes" ]] || { echo "missing $notes" >&2; exit 1; }
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/EcclesBluechat-${version}.apk" \
+            "dist/EcclesBluechat-${version}.apk.sha256" \
+            --title "Eccles Bluechat v${version}" \
+            --notes-file "$notes"

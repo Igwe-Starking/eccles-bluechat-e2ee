@@ -18,6 +18,7 @@ public class AvailReceiver extends EcclesReceiver {
 	private final SelectActivity activity;
 	private int found= 0;
 	private ArrayList<String> list;
+	private final ArrayList<BluetoothDevice> foundDevices= new ArrayList<>();
 
 	public AvailReceiver(SelectActivity activity){
 		this.activity= activity;
@@ -32,15 +33,21 @@ public class AvailReceiver extends EcclesReceiver {
 		switch (action) {
 			case BluetoothAdapter.ACTION_DISCOVERY_STARTED:
 				adapter.setHeaderNoText(adapter.av,"Scanning...");
-				adapter.setHeaderNoTextColor(adapter.av,Color.BLUE);
+				adapter.setHeaderNoTextColor(adapter.av,0xFF5E35B1);
 				adapter.setHeaderNoTextVisible(adapter.av,true);
 				break;
 			case BluetoothDevice.ACTION_FOUND:
 				found++;
+				BluetoothDevice seen= in.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+				if(seen != null){
+					int lvl= ClassicCompat.queryDeviceRSSI(in);
+					starking.eccles.util.PresenceTracker.recordSignal(seen.getAddress(),lvl);
+					foundDevices.add(seen);
+				}
 				short rs= in.getShortExtra(BluetoothDevice.EXTRA_RSSI,Short.MIN_VALUE);
-				EcclesPojo pojo= new EcclesPojo(in.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE),activity,R.layout.pojo_view,EcclesIcon.resize(60,60,R.drawable.user,activity),true,"Available",ClassicCompat.queryDeviceRSSI(in));
-				if(!list.contains(pojo.Message)){
-				list.add(pojo.Message);
+				EcclesPojo pojo= new EcclesPojo(in.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE),activity,R.layout.pojo_view,EcclesIcon.resize(60,60,ClassicCompat.queryDeviceIcon(((BluetoothDevice) in.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)).getAddress(),activity),activity),true,"Available",ClassicCompat.queryDeviceRSSI(in));
+				if(!list.contains(pojo.tag)){
+				list.add(pojo.tag);
 				adapter.add(adapter.pojos,pojo);
 				String an= activity.getSupportActionBar().getSubtitle().toString().split(" ")[0];
 				activity.getSupportActionBar().setSubtitle(Integer.parseInt(an)+1+" Devices Found");
@@ -49,10 +56,15 @@ public class AvailReceiver extends EcclesReceiver {
 				pojo= null;
 				break;
 			case BluetoothAdapter.ACTION_DISCOVERY_FINISHED:
-				activity.unregisterReceiver(this);
+				try{ activity.unregisterReceiver(this); } catch(IllegalArgumentException ignored){}
+				activity.stopRefreshing();
+				// The scan is over, so it is now safe to ask each nearby/paired device whether it
+				// is actually running Bluechat.
+				for(BluetoothDevice fd:foundDevices) starking.eccles.util.PresenceTracker.probe(activity,fd,true);
+				activity.probePaired(true);
 				list.clear();
 				if(found == 0){
-					adapter.setHeaderNoTextColor(adapter.av,Color.RED);
+					adapter.setHeaderNoTextColor(adapter.av,0xFFD64550);
 					adapter.setHeaderNoText(adapter.av,"No Available Devices Found");
 					adapter.setHeaderNoTextVisible(adapter.av,true);
 					return;

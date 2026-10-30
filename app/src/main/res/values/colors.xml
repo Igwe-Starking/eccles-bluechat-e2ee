@@ -1,11 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+	<!-- Brand palette. The old names (purple_*, teal_*) are kept because themes and layouts
+		 reference them; only their values changed. -->
+	<color name="purple_200">#FFC7B5FF</color>
+	<color name="purple_500">#FF5E35B1</color>
+	<color name="purple_700">#FF4527A0</color>
+	<color name="teal_200">#FF00BFA5</color>
+	<color name="teal_700">#FF00897B</color>
+	<color name="black">#FF000000</color>
+	<color name="white">#FFFFFFFF</color>
 	<color name="main">?attr/colorPrimaryVariant</color>
+
+	<color name="accent">#FF00BFA5</color>
+	<color name="danger">#FFE5484D</color>
+	<color name="call_accept">#FF2ECC71</color>
+	<color name="on_brand">#FFFFFFFF</color>
+	<color name="on_brand_dim">#B3FFFFFF</color>
+	<color name="status_active">#FF9BF2C4</color>
+	<color name="status_offline">#FFFFB4AB</color>
+	<color name="status_available">#FFB9D3FF</color>
+
+	<!-- Surfaces and text. Every one has a night variant in values-night/colors.xml. -->
+	<color name="window_bg">#FFF6F4FB</color>
+	<color name="chat_bg">#FFEEEAF7</color>
+	<color name="text_primary">#FF1F1B2E</color>
+	<color name="text_secondary">#FF5F5B76</color>
+	<color name="row_title">#FF4527A0</color>
+	<color name="row_message">#FF1F1B2E</color>
+	<color name="row_meta">#FF6B6785</color>
+	<color name="status_online_text">#FF1E8E5A</color>
+	<color name="status_offline_text">#FFD64550</color>
+	<color name="section_title">#FF4527A0</color>
+	<color name="input_bg">#FFFFFFFF</color>
+	<color name="input_text">#FF1F1B2E</color>
+	<color name="bubble_me">#FF5E35B1</color>
+	<color name="bubble_me_text">#FFFFFFFF</color>
+	<color name="bubble_them">#FFFFFFFF</color>
+	<color name="bubble_them_text">#FF1F1B2E</color>
+	<color name="bubble_status_sending">#FFFFE082</color>
+	<color name="bubble_status_sent">#FFB9F6CA</color>
+	<color name="bubble_status_failed">#FFFF8A80</color>
+
+	<color name="hint_text">#FF6B6785</color>
+	<color name="empty_state_text">#FF8A86A3</color>
+	<color name="banner_text">#FF6B6785</color>
+	<color name="message_meta_text">#FF6B6785</color>
+	<color name="section_subtitle">#FF6B6785</color>
 </resources>

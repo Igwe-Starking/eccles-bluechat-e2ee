@@ -8,7 +8,10 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Point;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
@@ -40,6 +43,7 @@ public class CallActivity extends EcclesActivity {
 	private ImageView image;
 	private TextView name;
 	private FloatingActionButton accept,reject;
+	private FloatingActionButton speakerButton;
 	private Caller caller;
 	public Chronometer dur;
 	private ServiceConnection connection;
@@ -68,40 +72,71 @@ public class CallActivity extends EcclesActivity {
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		device= getIntent().getExtras()!=null ? getIntent().getExtras().getParcelable("device") : null;
 		if(device == null){
-			Toast.makeText(this,"invalid bluetooth device",1).show();
+			Toast.makeText(this,"Invalid Bluetooth device",1).show();
 			finish();
 			return;
 		}
 		type= getIntent().getExtras().getShort("type");
+		if(type == TYPE_RECEIVE){
+			// This activity instance is the one answering notifyIncomingCall's full-screen
+			// intent (or the user tapped the notification directly) - either way, its job is
+			// done once we're actually here, including on the early-failure returns below.
+			starking.eccles.util.EcclesNotifier.cancelIncomingCall(this,device);
+		}
 		socket= app.getSocket(device.getAddress());
 
 		if(socket == null || !socket.isConnected()){
-			Toast.makeText(this,device.getName()+" is offline", Toast.LENGTH_LONG).show();
+			Toast.makeText(this,starking.eccles.util.PeerStore.displayName(device)+" is offline", Toast.LENGTH_LONG).show();
 			finish();
 			return;
 		}
 
 		if(app.inCall && (app.callingDevice == null || !device.getAddress().equals(app.callingDevice.getAddress()))){
-			Toast.makeText(this,"cant initiate call while in call", Toast.LENGTH_LONG).show();
+			Toast.makeText(this,"Can't start a call while already in a call", Toast.LENGTH_LONG).show();
 			finish();
 			return;
 		}
 		addContent();
 		if(!requestPermission(new String[]{Manifest.permission.RECORD_AUDIO},RECORD_PERM)){
-				if(type == TYPE_RECEIVE){
-					write(socket,new EcclesMessage(EcclesMessage.TYPE_CALL,EcclesMessage.SUBTYPE_CALL_ENDED));
-				}
-
-				Toast.makeText(this,"cant initiate call without microphone permission", Toast.LENGTH_LONG).show();
-				finish();
-				return;
+			// The permission dialog is asynchronous, so "not granted yet" is not "refused".
+			// Previously this finished the call immediately - i.e. the call always died the first
+			// time the dialog appeared. Now it waits; onRequestPermissionsResult() restarts this
+			// screen on a grant, or ends the call on a refusal.
+			waitingForPermission= true;
 		}
 
+	}
+
+	private boolean waitingForPermission= false;
+
+	@Override
+	protected boolean isLockable(){ return false; }
+
+	@Override
+	public void onRequestPermissionsResult(int rc,String[] perm,int[] gr){
+		if(!waitingForPermission || rc != RECORD_PERM){
+			super.onRequestPermissionsResult(rc,perm,gr);
+			return;
+		}
+		waitingForPermission= false;
+		if(gr.length > 0 && gr[0] == android.content.pm.PackageManager.PERMISSION_GRANTED){
+			recreate();
+			return;
+		}
+		if(type == TYPE_RECEIVE){
+			write(socket,new EcclesMessage(EcclesMessage.TYPE_CALL,EcclesMessage.SUBTYPE_CALL_ENDED));
+		}
+		Toast.makeText(this,"Can't start the call without microphone permission", Toast.LENGTH_LONG).show();
+		finish();
 	}
 
 	@SuppressLint("MissingPermission")
 	@Override
 	public void onStart(){
+		if(waitingForPermission){
+			super.onStart();
+			return;
+		}
 		handleCall(type);
 
 		reject.setOnClickListener((View v)->{
@@ -110,11 +145,11 @@ public class CallActivity extends EcclesActivity {
 			quit("CALL ENDED");
 		});
 		if(type == TYPE_REQUEST){
-			name.setText("Calling "+device.getName());
+			name.setText("Calling "+starking.eccles.util.PeerStore.displayName(device));
 			slideIn();
 
 		} else {
-			if(type== TYPE_RECEIVE) name.setText("Incoming Call from "+device.getName());
+			if(type== TYPE_RECEIVE) name.setText("Incoming Call from "+starking.eccles.util.PeerStore.displayName(device));
 
 			accept.setOnClickListener((View v)->{
 				write(socket,new EcclesMessage(EcclesMessage.TYPE_CALL,EcclesMessage.SUBTYPE_CALL_ACCEPTED));
@@ -167,7 +202,7 @@ public class CallActivity extends EcclesActivity {
 
 		new Handler(android.os.Looper.getMainLooper()).postDelayed(()->{
 			if(!ringed){
-				quit(device.getName()+" Cannot be reached");
+				quit(starking.eccles.util.PeerStore.displayName(device)+" Cannot be reached");
 			}
 		},10000);
 		write(socket,m);
@@ -202,8 +237,10 @@ public class CallActivity extends EcclesActivity {
 
 	public void quit(String r){
 		try{
-			rPlayer.stop();
-			rPlayer.release();
+			if(rPlayer != null) {
+				rPlayer.stop();
+				rPlayer.release();
+			}
 		} catch (Exception e){
 			Log.e("Eccles","failed to stop player",e);
 		}
@@ -215,6 +252,7 @@ public class CallActivity extends EcclesActivity {
 			} catch(Exception s){ android.util.Log.e("CallActivity", "Suppressed exception", s); }
 		}
 		name.setText(r);
+		if(speakerButton != null) speakerButton.setVisibility(View.GONE);
 		app.inCall= false;
 		app.callingDevice= null;
 		app.callDur= 0L;
@@ -266,11 +304,36 @@ public class CallActivity extends EcclesActivity {
 			write(socket,new EcclesMessage(EcclesMessage.TYPE_CALL,EcclesMessage.SUBTYPE_CALL_ENDED));
 
 		});
-		name.setText("Connected to "+device.getName());
+		name.setText("Connected to "+starking.eccles.util.PeerStore.displayName(device));
 		dur.setVisibility(View.VISIBLE);
 		dur.setBase(SystemClock.elapsedRealtime());
 		dur.start();
+		setupSpeakerToggle();
 
+	}
+
+	/** Shown only from here - once the call is actually connected (both on answering and on the
+	 *  far end accepting), not during ringing, matching how WhatsApp/standard call UIs only
+	 *  show in-call controls once there's an active call to control. Caller#startCall already
+	 *  defaults audio to the speaker, so this starts reflecting that same "on" state rather
+	 *  than defaulting to looking like it's off. */
+	private void setupSpeakerToggle(){
+		if(speakerButton == null) return;
+		AudioManager audioManager= (AudioManager) getSystemService(AUDIO_SERVICE);
+		if(audioManager == null) return;
+		speakerButton.setVisibility(View.VISIBLE);
+		updateSpeakerIcon(audioManager);
+		speakerButton.setOnClickListener(v-> {
+			Caller.toggleSpeaker(audioManager);
+			updateSpeakerIcon(audioManager);
+		});
+	}
+
+	private void updateSpeakerIcon(AudioManager audioManager){
+		boolean onSpeaker= Caller.isOnSpeaker(audioManager);
+		// Same icon throughout, tinted to show on/off - simpler and more reliable than hunting
+		// for a system drawable that unambiguously means "earpiece" specifically.
+		speakerButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor(onSpeaker ? "#33ff33" : "#888888")));
 	}
 
 	public void slideIn(){
@@ -291,6 +354,7 @@ public class CallActivity extends EcclesActivity {
 		name= findViewById(R.id.caller);
 		accept= findViewById(R.id.accept_bt);
 		reject= findViewById(R.id.reject_bt);
+		speakerButton= findViewById(R.id.speaker_bt);
 		dur= findViewById(R.id.call_timer);
 		if(app.callingDevice != null && app.callingDevice.getAddress().equals(device.getAddress()) && app.callDur>0){
 			dur.setBase(app.callDur);

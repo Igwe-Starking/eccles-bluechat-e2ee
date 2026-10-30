@@ -9,6 +9,8 @@
 		android:layout_width="wrap_content"
 		android:id="@+id/d_check"
 		app:layout_constraintRight_toRightOf="parent"
-		android:layout_marginRight="20dp" />
+		android:layout_marginRight="20dp"
+		android:textColor="@color/text_secondary"
+		android:textSize="14sp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

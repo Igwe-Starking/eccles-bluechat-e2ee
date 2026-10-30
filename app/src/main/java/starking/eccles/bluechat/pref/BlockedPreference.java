@@ -32,10 +32,10 @@ public class BlockedPreference extends PreferenceFragmentCompat {
 			if(st.size()>0){
 				for(String s:st){
 					BluetoothDevice d= ((EcclesApplication)getActivity().getApplication()).adapter.getRemoteDevice(s);
-					if(d != null && d.getName() != null){
+					if(d != null && starking.eccles.util.PeerStore.displayName(d) != null){
 						CheckBoxPreference cb= new CheckBoxPreference(getActivity());
-						cb.setTitle(d.getName());
-						cb.setSummary(d.getAddress());
+						cb.setTitle(starking.eccles.util.PeerStore.displayName(d));
+						cb.setSummary(starking.eccles.util.PeerStore.deviceType(d));
 						cb.setChecked(true);
 						cb.setOnPreferenceChangeListener((Preference p,Object v)->{
 							if(!(boolean)v){
@@ -55,10 +55,10 @@ public class BlockedPreference extends PreferenceFragmentCompat {
 				// then just keep whatever title it already had, misleadingly implying no
 				// devices were blocked.
 				act.getSupportActionBar().setTitle(st.size()+" Blocked devices found");
-				act.getSupportActionBar().setSubtitle("Uncheck to unBlock");
+				act.getSupportActionBar().setSubtitle("Uncheck to unblock");
 			} else {
-				act.getSupportActionBar().setTitle("No Blocked devices Found");
-				act.getSupportActionBar().setSubtitle("tap and hold on a device to unblock it");
+				act.getSupportActionBar().setTitle("No blocked devices");
+				act.getSupportActionBar().setSubtitle("Tap and hold a device to unblock it");
 			}
 
 		}

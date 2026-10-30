@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<!-- Night-mode counterparts of values/colors.xml (same names, so layouts pick the right
+		 one automatically). -->
+	<color name="window_bg">#FF121018</color>
+	<color name="chat_bg">#FF16131F</color>
+	<color name="text_primary">#FFECE8F8</color>
+	<color name="text_secondary">#FFB3AECB</color>
+	<color name="row_title">#FFCBB8FF</color>
+	<color name="row_message">#FFE8E4F4</color>
+	<color name="row_meta">#FFA9A4C2</color>
+	<color name="status_online_text">#FF5FD6A0</color>
+	<color name="status_offline_text">#FFFF8A93</color>
+	<color name="section_title">#FFCBB8FF</color>
+	<color name="input_bg">#FF2A2736</color>
+	<color name="input_text">#FFECE8F8</color>
+	<color name="bubble_me">#FF6A47C9</color>
+	<color name="bubble_them">#FF2A2736</color>
+	<color name="bubble_them_text">#FFECE8F8</color>
+
+	<color name="hint_text">#FFA9A4C2</color>
+	<color name="empty_state_text">#FF7F7A99</color>
+	<color name="banner_text">#FFA9A4C2</color>
+	<color name="message_meta_text">#FFA9A4C2</color>
+	<color name="section_subtitle">#FFA9A4C2</color>
+</resources>

@@ -14,12 +14,17 @@
                 android:layout_height="54dp"
                 android:background="?attr/colorPrimaryVariant"
 				android:id="@+id/toolbar"
-                app:titleTextColor="#ff0" />
+                app:titleTextColor="@color/on_brand"
+				app:subtitleTextColor="@color/on_brand_dim" />
 
             <com.google.android.material.tabs.TabLayout
                 android:layout_width="match_parent"
                 android:layout_height="54dp"
-				app:tabTextColor="#ff0"
+				app:tabTextColor="@color/on_brand_dim"
+				app:tabSelectedTextColor="@color/on_brand"
+				app:tabIndicatorColor="@color/accent"
+				app:tabIndicatorHeight="3dp"
+				app:tabIconTint="@null"
 				app:tabBackground="?attr/colorPrimaryVariant"
 				android:id="@+id/tabs" />
         </com.google.android.material.appbar.AppBarLayout>
@@ -29,7 +34,41 @@
             android:layout_height="wrap_content"
 			app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior"
 			android:id="@+id/viewpager" />
-			
-		
-		
+
+		<!-- Last child = drawn on top of everything else here, including the toolbar/tabs - an
+			 opaque cover, not a dismissible dialog floating over visible chat content. The old
+			 approach (just popping a BiometricPrompt over the already-fully-rendered activity)
+			 is exactly why "tap away and go back" could still show real content: a cancelled or
+			 dismissed prompt is just a dialog closing, it doesn't un-render what was already
+			 drawn behind it. This starts GONE and MajorActivity#checkBiometricLock is what
+			 shows/hides it - visible for the *entire* time needsUnlock is true, not just while
+			 the system prompt itself happens to be up, and specifically NOT hidden again just
+			 because the prompt was cancelled. -->
+		<LinearLayout
+			android:id="@+id/lock_overlay"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:orientation="vertical"
+			android:gravity="center"
+			android:background="?attr/colorPrimaryVariant"
+			android:visibility="gone"
+			android:clickable="true"
+			android:focusable="true">
+
+			<ImageView
+				android:layout_width="96dp"
+				android:layout_height="96dp"
+				android:src="@drawable/icon"
+				android:contentDescription="Bluechat" />
+
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="16dp"
+				android:text="Tap to unlock"
+				android:textColor="@android:color/white"
+				android:textSize="18sp" />
+
+		</LinearLayout>
+
     </androidx.coordinatorlayout.widget.CoordinatorLayout>

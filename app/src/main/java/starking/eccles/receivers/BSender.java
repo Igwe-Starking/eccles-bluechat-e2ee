@@ -20,10 +20,24 @@ public class BSender extends EcclesReceiver {
 		android.os.Bundle results= RemoteInput.getResultsFromIntent(in);
 		CharSequence msg= results != null ? results.getCharSequence(EcclesNotifier.KEY_INPUT) : null;
 		android.os.Bundle extras= in.getExtras();
-		BluetoothDevice d= extras != null ? extras.getParcelable("device") : null;
+		BluetoothDevice d0= extras != null ? extras.getParcelable("device") : null;
+		if(d0 == null && extras != null && extras.getString("address") != null){
+			try{
+				d0= ((EcclesApplication) c.getApplicationContext()).adapter.getRemoteDevice(extras.getString("address"));
+			} catch(Exception ignored){}
+		}
 
-		if(msg == null || msg.length()==0 || d == null){
-			removeNot("Failed: empty message",c,d);
+		final BluetoothDevice d= d0;
+		if(d == null){
+			android.util.Log.w("BSender","reply tapped but the device is missing from the intent");
+			removeNot("Couldn't send your reply. Open the chat and try again.",c,null);
+			return;
+		}
+		if(msg == null || msg.toString().trim().length()==0){
+			android.util.Log.w("BSender","reply tapped but no text came back; results="+results+" extras="+extras);
+			// Keep the notification so the user can try again; just explain.
+			android.os.Handler h= new android.os.Handler(android.os.Looper.getMainLooper());
+			h.post(()-> Toast.makeText(c,"Type a reply first",Toast.LENGTH_SHORT).show());
 			return;
 		}
 
@@ -36,7 +50,7 @@ public class BSender extends EcclesReceiver {
 				BluetoothSocket s= ea.getSocket(d.getAddress());
 
 				if(s == null){
-					removeNot("Failed: "+d.getName()+" is not active",appContext,d);
+					removeNot("Couldn't reach "+starking.eccles.util.PeerStore.displayName(d)+". Open the chat and reconnect.",appContext,d);
 					return;
 				}
 
@@ -57,13 +71,13 @@ public class BSender extends EcclesReceiver {
 				// reasonable trade for never lying about whether the message actually sent.
 				if(ea.writeHeadless(s,m)){
 					ea.chatStore.insert(ClassicCompat.purifyAddress(d.getAddress()),"sent",m);
-					removeNot("successful",appContext,d);
+					removeNot("Reply sent",appContext,d);
 				} else {
-					removeNot("Failed to send message",appContext,d);
+					removeNot("Couldn't send your reply. Please try again.",appContext,d);
 				}
 			} catch(Exception e){
 				android.util.Log.e("BSender","quick-reply send failed",e);
-				removeNot("Failed to send message",appContext,d);
+				removeNot("Couldn't send your reply. Please try again.",appContext,d);
 			} finally {
 				pending.finish();
 			}

@@ -151,6 +151,9 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
         private final ProgressBar audioProgress;
         private final Chronometer duration;
         private final View videoPlayButton;
+        /** Audio has no separate "view" screen like image/video do (ViewActivity), so unlike
+         *  those this lives directly in the chat bubble - see bindAudio(). */
+        private final View downloadButton;
 
         private MediaPlayer player;
         private boolean audioPaused;
@@ -167,6 +170,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
             audioProgress = itemView.findViewById(R.id.audio_pro);
             duration = itemView.findViewById(R.id.duration);
             videoPlayButton = itemView.findViewById(R.id.v_play);
+            downloadButton = itemView.findViewById(R.id.download);
         }
 
         void bind(ChatPojo pojo) {
@@ -174,7 +178,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
 
             // Reset to a known baseline before applying pojo-specific state, since this row's
             // View may previously have displayed a completely different message.
-            itemView.setBackgroundColor(pojo.isSelected ? Color.BLUE : Color.TRANSPARENT);
+            itemView.setBackgroundColor(pojo.isSelected ? 0x553D5AFE : Color.TRANSPARENT);
             if (statusText != null) {
                 statusText.setVisibility(View.GONE);
             }
@@ -184,7 +188,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
                 icon.setImageDrawable(d != null ? d : EcclesIcon.resize(40, 40, R.drawable.user, activity));
             }
             if (statusText != null && pojo.status != null) {
-                statusText.setText(pojo.status);
+                statusText.setText(friendlyStatus(pojo.status));
                 statusText.setTextColor(statusColor(pojo.status));
                 statusText.setVisibility(View.VISIBLE);
             }
@@ -220,18 +224,28 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
                 return true;
             });
         }
+    private String friendlyStatus(String st) {
+        if (st == null) return "";
+        switch (st) {
+            case "sending": return "Sending\u2026";
+            case "sent": return "Sent";
+            case "failed": return "Not sent";
+            default: return st;
+        }
+    }
+
 
         private int statusColor(String status) {
             switch (status) {
-                case "sending": return Color.YELLOW;
-                case "sent": return Color.GREEN;
-                case "failed": return Color.RED;
+                case "sending": return 0xFFFFE082;
+                case "sent": return 0xFFB9F6CA;
+                case "failed": return 0xFFFF8A80;
                 default: return Color.TRANSPARENT;
             }
         }
 
         private void bindText(ChatPojo pojo) {
-            textBody.setText(new String(pojo.messenger.data, StandardCharsets.UTF_8));
+            textBody.setText(pojo.messenger.data == null ? "" : new String(pojo.messenger.data, StandardCharsets.UTF_8));
         }
 
         private void bindImage(ChatPojo pojo) {
@@ -240,7 +254,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
                 if (pojo.uri == null) throw new Exception("failed to decrypt media");
             } catch (Exception e) {
                 Log.e("Eccles", "failed to get uri", e);
-                Toast.makeText(activity, "Failed to process received Image\nStorage permission might not have been granted", Toast.LENGTH_LONG).show();
+                Toast.makeText(activity, "Couldn't open this photo. Check that Bluechat has storage access.", Toast.LENGTH_LONG).show();
                 return;
             }
             imageBody.setImageURI(pojo.uri);
@@ -252,7 +266,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
                 pojo.uri = EcclesStorage.resolveUri(activity, new String(pojo.messenger.data));
                 if (pojo.uri == null) throw new Exception("failed to decrypt media");
             } catch (Exception e) {
-                Toast.makeText(activity, "Failed to process received Video\nStorage permission might not have been granted", Toast.LENGTH_LONG).show();
+                Toast.makeText(activity, "Couldn't open this video. Check that Bluechat has storage access.", Toast.LENGTH_LONG).show();
                 return;
             }
             videoThumb.setImageBitmap(EcclesStorage.extractThumb(activity, pojo.uri));
@@ -266,7 +280,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
                 pojo.uri = EcclesStorage.resolveUri(activity, new String(pojo.messenger.data));
                 if (pojo.uri == null) throw new Exception("failed to decrypt media");
             } catch (Exception e) {
-                Toast.makeText(activity, "Failed to process received Audio\nStorage permission might not have been granted", Toast.LENGTH_LONG).show();
+                Toast.makeText(activity, "Couldn't open this voice message. Check that Bluechat has storage access.", Toast.LENGTH_LONG).show();
                 return;
             }
 
@@ -277,6 +291,15 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.MessageViewHol
             audioProgress.setMax((int) TimeUnit.MILLISECONDS.toSeconds(l));
             audioPlayButton.setImageResource(android.R.drawable.ic_media_play);
             audioPaused = false;
+
+            if (downloadButton != null) {
+                downloadButton.setOnClickListener(v -> {
+                    String name = EcclesStorage.getDisplayName(activity, pojo.uri);
+                    if (!name.contains(".")) name = name + ".m4a";
+                    Uri saved = EcclesStorage.saveToDownloads(activity, pojo.uri, name, "audio/mp4");
+                    Toast.makeText(activity, saved != null ? "Saved to Downloads" : "Couldn't save the file", Toast.LENGTH_SHORT).show();
+                });
+            }
 
             audioPlayButton.setOnClickListener(v -> {
                 if (player != null) {

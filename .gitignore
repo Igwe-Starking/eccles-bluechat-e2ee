@@ -1,37 +1,29 @@
-# Gradle
+# Gradle / Android
 .gradle/
 build/
-app/build/
-!gradle/wrapper/gradle-wrapper.jar
-
-# Local configuration
+*/build/
 local.properties
-
-# Android Studio / IntelliJ
 .idea/
 *.iml
-.DS_Store
 captures/
 .externalNativeBuild/
 .cxx/
+.kotlin/
 
-# Keystores (never commit signing keys)
+# Signing material and secrets: never commit these
 *.jks
 *.keystore
+*.p12
+*.pem
+keystore.properties
+.env
+.env.*
 
-# Logs
-*.log
-
-# Build outputs
+# Release output lives in GitHub Releases, not in git history
+dist/
 *.apk
 *.aab
-*.ap_
-*.dex
 
-# Generated files
-bin/
-gen/
-out/
-
-# Android Profiling
-*.hprof
+# OS
+.DS_Store
+Thumbs.db

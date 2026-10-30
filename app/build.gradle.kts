@@ -4,21 +4,20 @@ plugins {
 
 android {
     namespace = "starking.eccles.bluechat"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "starking.eccles.bluechat"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 3
-        versionName = "3.0"
+        versionName = "3.1"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            multiDexEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -29,8 +28,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     testOptions {
         unitTests {
@@ -59,6 +58,7 @@ dependencies {
     implementation(libs.lifecycle.viewmodel)
     implementation(libs.lifecycle.service)
     implementation(libs.collection)
+    implementation(libs.biometric)
 
     // --- Unit tests (src/test) : run on the local JVM, no device/emulator needed ---
     testImplementation(libs.junit)

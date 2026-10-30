@@ -26,7 +26,7 @@
 		android:textSize="16sp"
 		android:layout_marginLeft="50dp"
 		app:layout_constraintTop_toBottomOf="@+id/pro_t"
-		android:textColor="#3f3" />
+		android:textColor="#FF9BF2C4" />
 		
 	<LinearLayout
 		android:layout_height="wrap_content"
@@ -68,14 +68,16 @@
 		app:layout_constraintBottom_toBottomOf="parent"
 		android:layout_margin="10dp"
 		app:cardBackgroundColor="?attr/colorPrimaryVariant"
-		app:cardCornerRadius="8dp">
+		app:cardCornerRadius="20dp">
 		
 	<Button
 	android:layout_height="wrap_content"
 	android:layout_width="wrap_content"
 	android:background="?attr/colorPrimaryVariant"
-	android:textColor="#aaa"
-	android:textSize="10sp"
+	android:textColor="@color/on_brand"
+	android:textSize="14sp"
+	android:paddingLeft="14dp"
+	android:paddingRight="14dp"
 	android:text="Connect"
 	android:id="@+id/connect_bt"/>
 	

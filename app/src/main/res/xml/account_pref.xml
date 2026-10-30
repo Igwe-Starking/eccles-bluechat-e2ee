@@ -1,13 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 	<EditTextPreference
-		app:title="Profile Name"
+		app:title="Your name"
 		app:key="name"
-		app:summary="your profile name is visible to all devices" />
-	
-	<Preference
-		app:title="Profile Address"
-		app:key="address"
-		app:summary="your profile address is visible to all devices and cant be changed" />
-	
+		app:summary="Shown to people you connect with. Leave empty to use your phone's name. Your Bluetooth name is not changed." />
+
 </PreferenceScreen>

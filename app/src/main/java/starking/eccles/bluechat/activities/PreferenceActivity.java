@@ -31,7 +31,7 @@ public class PreferenceActivity extends EcclesOptions {
 		super.onActivityResult(rc,res,d);
 		if(rc == RING_CODE && res == RESULT_OK){
 			if(EcclesStorage.saveTone(this,d.getData())){
-				Toast.makeText(this,"Ringtone Changed Successfully",1).show();
+				Toast.makeText(this,"Ringtone changed",1).show();
 			} else {
 				Toast.makeText(this,"Failed to update Ringtone",1).show();
 			}

@@ -286,4 +286,53 @@ public class EcclesStorage {
 		return size >= 0 && size < 3000000;
 	}
 
+	/**
+	 * Copies a received media file (already-decrypted plaintext, from {@link #resolveUri}) into
+	 * the device's public Downloads folder, so it's reachable from the Files app / other apps
+	 * outside Bluechat, not just from inside this app's own private storage. Returns the new
+	 * Uri in the Downloads collection on success, null on failure.
+	 */
+	public static Uri saveToDownloads(Context c,Uri source,String displayName,String mimeType){
+		try(InputStream in= c.getContentResolver().openInputStream(source)){
+			if(in == null) return null;
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
+				// Scoped storage: MediaStore.Downloads is the sanctioned way to write into the
+				// public Downloads collection without WRITE_EXTERNAL_STORAGE at all.
+				android.content.ContentValues values= new android.content.ContentValues();
+				values.put(android.provider.MediaStore.Downloads.DISPLAY_NAME,displayName);
+				values.put(android.provider.MediaStore.Downloads.MIME_TYPE,mimeType);
+				values.put(android.provider.MediaStore.Downloads.IS_PENDING,1);
+				Uri dest= c.getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,values);
+				if(dest == null) return null;
+				try(java.io.OutputStream out= c.getContentResolver().openOutputStream(dest)){
+					if(out == null) return null;
+					byte[] buf= new byte[8192];
+					int n;
+					while((n= in.read(buf)) > 0) out.write(buf,0,n);
+				}
+				values.clear();
+				values.put(android.provider.MediaStore.Downloads.IS_PENDING,0);
+				c.getContentResolver().update(dest,values,null,null);
+				return dest;
+			} else {
+				// Pre-Q: no MediaStore.Downloads collection - write the file directly, and
+				// explicitly tell the media scanner about it so it actually shows up in the
+				// Files/Downloads app immediately rather than only after the next full scan.
+				File downloads= android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
+				if(!downloads.exists() && !downloads.mkdirs()) return null;
+				File dest= new File(downloads,displayName);
+				try(java.io.OutputStream out= new FileOutputStream(dest)){
+					byte[] buf= new byte[8192];
+					int n;
+					while((n= in.read(buf)) > 0) out.write(buf,0,n);
+				}
+				android.media.MediaScannerConnection.scanFile(c,new String[]{dest.getAbsolutePath()},new String[]{mimeType},null);
+				return Uri.fromFile(dest);
+			}
+		} catch (Exception e){
+			Log.e("Eccles","saveToDownloads() failed",e);
+			return null;
+		}
+	}
+
 }

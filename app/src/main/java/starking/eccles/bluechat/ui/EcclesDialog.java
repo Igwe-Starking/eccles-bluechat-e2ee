@@ -86,22 +86,19 @@ public class EcclesDialog extends DialogFragment {
 
 		MaterialAlertDialogBuilder b= new MaterialAlertDialogBuilder(getActivity(),R.style.AlertDialog_rounded);
 
-		SpannableString spt= new SpannableString("Eccles");
+		SpannableString spt= new SpannableString("Eccles Bluechat");
 		spt.setSpan(new StyleSpan(Typeface.BOLD),0,spt.length(),0);
-		spt.setSpan(new ForegroundColorSpan(Color.WHITE),0,spt.length(),0);
-		spt.setSpan(new RelativeSizeSpan(1.8f),0,spt.length(),0);
+		spt.setSpan(new RelativeSizeSpan(1.2f),0,spt.length(),0);
 		b.setTitle(spt);
 
 		if(message != null){
 			SpannableString sp= new SpannableString(message);
-			sp.setSpan(new ForegroundColorSpan(Color.YELLOW),0,message.length(),0);
 			b.setMessage(sp);
 		}
 
 		if(pb != null){
 			SpannableString spp= new SpannableString(pb);
-			spp.setSpan(new RelativeSizeSpan(1.5f),0,spp.length(),0);
-			spp.setSpan(new ForegroundColorSpan(Color.GREEN),0,spp.length(),0);
+			spp.setSpan(new android.text.style.StyleSpan(Typeface.BOLD),0,spp.length(),0);
 			b.setPositiveButton((CharSequence)spp,(DialogInterface d,int p)->{
 				if(pa != null){
 					pa.run();
@@ -113,8 +110,7 @@ public class EcclesDialog extends DialogFragment {
 		if(items != null){
 
 			SpannableString spnn= new SpannableString(items);
-			spnn.setSpan(new ForegroundColorSpan(Color.WHITE),0,spnn.length(),0);
-			spnn.setSpan(new RelativeSizeSpan(0.75f),0,spnn.length(),0);
+
 
 			View dv= LayoutInflater.from(getActivity()).inflate(R.layout.dialog_box,null);
 			CheckBox cb= dv.findViewById(R.id.d_check);
@@ -129,8 +125,7 @@ public class EcclesDialog extends DialogFragment {
 
 		if(nb != null){
 			SpannableString spn= new SpannableString(nb);
-			spn.setSpan(new RelativeSizeSpan(1.45f),0,nb.length(),0);
-			spn.setSpan(new ForegroundColorSpan(Color.RED),0,spn.length(),0);
+
 			b.setNegativeButton((CharSequence) spn,(DialogInterface d,int p)->{
 				if(na != null){
 					na.run();

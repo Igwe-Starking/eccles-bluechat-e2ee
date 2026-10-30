@@ -33,8 +33,10 @@ public class ChatPojo {
     public ChatPojo(EcclesMessage m, ChatActivity act) {
         this.messenger = m;
         this.act = act;
-        this.tag = m.sender;
+        // See EcclesMessage#localId's doc for why this is keyed by localId and not sender.
+        this.tag = String.valueOf(m.localId);
         this.self = m.sender == null || m.sender.equals("");
+        this.index = (int) m.storeId;
     }
 
     /** Requests that this row be re-rendered with its current status/selection state. A no-op

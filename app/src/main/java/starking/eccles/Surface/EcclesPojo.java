@@ -78,11 +78,10 @@ public class EcclesPojo {
         this.status = status;
         this.rssi = rssi;
         if (device != null) {
-            this.Title = device.getName();
+            this.Title = starking.eccles.util.PeerStore.displayName(device);
             this.tag = device.getAddress();
-            if (attachAddress) {
-                this.Message = device.getAddress();
-            }
+            // The Bluetooth address is deliberately never shown; device rows display the
+            // device type instead (see EcclesAdapter.ItemViewHolder#bindDevicePresence).
         }
     }
 
@@ -98,10 +97,11 @@ public class EcclesPojo {
         switch (header) {
             case AVAIL:
                 headerLabelColor = Color.BLUE;
-                headerNoText = ((EcclesActivity) con).requestPermission(
-                        new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION},
-                        EcclesActivity.LOCATION_PERM)
-                        ? "No Available device found" : "permission not granted";
+                boolean granted = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                        ? androidx.core.content.ContextCompat.checkSelfPermission(con, android.Manifest.permission.BLUETOOTH_SCAN) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        : androidx.core.content.ContextCompat.checkSelfPermission(con, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        && androidx.core.content.ContextCompat.checkSelfPermission(con, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+                headerNoText = granted ? "No Available device found" : "permission not granted";
                 break;
             case ACTIVE:
                 headerLabelColor = Color.GREEN;

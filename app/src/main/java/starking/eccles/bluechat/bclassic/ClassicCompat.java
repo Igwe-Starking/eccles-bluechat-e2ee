@@ -43,14 +43,38 @@ public class ClassicCompat {
 	public static final String SERVICE_NAME_SEED= "Ecclesiastes";
 	public static final UUID uuid= UUID.nameUUIDFromBytes(SERVICE_NAME_SEED.getBytes(StandardCharsets.UTF_8));
 
+	/**
+	 * Whether this device could plausibly be an Android phone/tablet running Bluechat. This
+	 * used to demand the exact "smartphone" class (524), which many Android phones, tablets and
+	 * custom ROMs don't report - so real Android devices were labelled "not supported". Now only
+	 * devices that are clearly something else (headphones, keyboards, watches, printers...) are
+	 * excluded; anything unknown gets the benefit of the doubt.
+	 */
 	public static boolean queryDeviceType(BluetoothDevice device){
-		return device.getBluetoothClass().getDeviceClass()== 524;
+		try{
+			android.bluetooth.BluetoothClass bc= device.getBluetoothClass();
+			if(bc == null) return true;
+			switch (bc.getMajorDeviceClass()){
+				case android.bluetooth.BluetoothClass.Device.Major.AUDIO_VIDEO:
+				case android.bluetooth.BluetoothClass.Device.Major.PERIPHERAL:
+				case android.bluetooth.BluetoothClass.Device.Major.IMAGING:
+				case android.bluetooth.BluetoothClass.Device.Major.WEARABLE:
+				case android.bluetooth.BluetoothClass.Device.Major.TOY:
+				case android.bluetooth.BluetoothClass.Device.Major.HEALTH:
+					return false;
+				default:
+					return true;
+			}
+		} catch (Exception e){
+			return true;
+		}
 	}
 
 	public static int queryDeviceRSSI(Intent intent){
 		short rssi=intent.getShortExtra(BluetoothDevice.EXTRA_RSSI,Short.MIN_VALUE);
 
-		if(!queryDeviceType(intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE))){
+		BluetoothDevice dev= intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+		if(dev != null && !queryDeviceType(dev)){
 			return -1;
 		}
 
@@ -60,10 +84,9 @@ public class ClassicCompat {
 			return 3;
 		} else if(rssi > -80){
 			return 2;
-		} else if(rssi > -90){
-			return 1;
 		} else {
-			return -1;
+			// Weak or unreadable signal is still a device that is in range - never "unsupported".
+			return 1;
 		}
 	}
 
@@ -112,15 +135,38 @@ public class ClassicCompat {
 		return b != null ? b : ((BitmapDrawable)con.getResources().getDrawable(R.drawable.user)).getBitmap();
 	}
 
-	public static void saveDeviceIcon(String add,byte[] data,Context con){
+	/** @return true if the icon was actually saved, false otherwise (encryption failure, or -
+	 *  the actual cause of "large image icon didn't upload and didn't alert" - a large image's
+	 *  encoded string tripping SharedPreferences' practical per-value size ceiling, well under
+	 *  EcclesStorage#verifySize's general 3MB attachment limit). This used to be void, so a
+	 *  failure here was silently swallowed with nothing but a log line - callers that actually
+	 *  need to tell the user it didn't work (AccountActivity's profile picture upload) now can. */
+	/** Conservative, well under Binder's ~1MB per-transaction ceiling that a SharedPreferences
+	 *  write this large can actually hit - deliberately much tighter than EcclesStorage
+	 *  #verifySize's general 3MB attachment limit, since attachments go to files, not a
+	 *  SharedPreferences value. */
+	private static final int MAX_ICON_BYTES= 900_000;
+
+	public static boolean saveDeviceIcon(String add,byte[] data,Context con){
+		if(data == null || data.length > MAX_ICON_BYTES){
+			android.util.Log.w("ClassicCompat","device icon for "+add+" too large to store ("+(data==null?0:data.length)+" bytes)");
+			return false;
+		}
 		try{
 			byte[] encrypted= ICON_AT_REST.encrypt(data);
-			con.getSharedPreferences(DEVICE_ICON_STORAGE,Context.MODE_PRIVATE).edit()
-					.putString(add,new String(encrypted,StandardCharsets.ISO_8859_1)).apply();
+			// commit(), not apply(): apply() is fire-and-forget and can silently swallow a
+			// write failure for an oversized value (the actual mechanism behind "large image
+			// icon didn't upload and didn't alert") - commit() blocks and hands back a real
+			// success/failure result this method can actually act on and report.
+			boolean saved= con.getSharedPreferences(DEVICE_ICON_STORAGE,Context.MODE_PRIVATE).edit()
+					.putString(add,new String(encrypted,StandardCharsets.ISO_8859_1)).commit();
+			if(!saved) android.util.Log.w("ClassicCompat","SharedPreferences.commit() reported failure saving device icon for "+add);
+			return saved;
 		} catch (Exception e){
 			// Fail closed, matching ChatBase's at-rest encryption policy: never fall back to
 			// storing the plaintext icon bytes unencrypted just because encryption failed.
 			android.util.Log.e("ClassicCompat","failed to encrypt device icon for "+add+", not storing it",e);
+			return false;
 		}
 	}
 
@@ -254,16 +300,9 @@ public class ClassicCompat {
 		c.getSharedPreferences("missed_calls",Context.MODE_PRIVATE).edit().remove(video?"video":"voice").apply();
 	}
 
+	/** Cached-only convenience; the real answer comes from {@link starking.eccles.util.PresenceTracker}. */
 	public static boolean checkOnline(BluetoothDevice d){
-		try{
-		ParcelUuid[] uuids= d.getUuids();
-		for(ParcelUuid pu:uuids){
-			if(pu.getUuid().equals(uuid)) return true;
-		}
-		return false;
-		} catch (Exception e){
-			return false;
-		}
+		return starking.eccles.util.PresenceTracker.isOnline(d);
 	}
 
 }
