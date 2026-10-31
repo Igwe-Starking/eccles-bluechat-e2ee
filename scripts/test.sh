@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 # Run the JVM unit tests (crypto, framing, trust store, utilities).
 # Usage: bash scripts/test.sh [extra gradle args]
-source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-cd "$ROOT"
-info "unit tests"
+
+# Safe cross-platform fallback path helper
+if [ -f "$(dirname "${BASH_SOURCE[0]}")/lib.sh" ]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+fi
+
+# Lock path context directly to the repository root directory
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+if command -v info &> /dev/null; then info "unit tests"; else echo "==> unit tests"; fi
+
+# Execute tests via the root wrapper safely
 ./gradlew --console=plain --no-daemon testDebugUnitTest "$@"
-ok "unit tests passed"
+
+if command -v ok &> /dev/null; then ok "unit tests passed"; else echo "==> unit tests passed"; fi
