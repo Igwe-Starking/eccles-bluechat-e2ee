@@ -2,7 +2,7 @@
 # Build, sign (if secrets are present), verify and checksum a release into ./dist.
 # Usage: bash scripts/release.sh 3.1.0
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-cd "$ROOT"
+#cd "$ROOT"
 
 version="${1:?usage: release.sh <version, e.g. 3.1.0>}"
 dist="$ROOT/dist"; mkdir -p "$dist"
