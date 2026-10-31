@@ -11,6 +11,10 @@ case "$variant" in
   *) die "usage: build.sh [debug|release]";;
 esac
 
+# WORKAROUND: Force clean line endings and execution rights on Linux runners
+sed -i 's/\r$//' gradlew
+chmod +x gradlew
+
 info "gradle $task"
 ./gradlew --console=plain --no-daemon "$task"
 ok "built:"
