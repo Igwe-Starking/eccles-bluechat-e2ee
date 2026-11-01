@@ -33,11 +33,7 @@
 
 ## Why Bluechat
 
-<<<<<<< HEAD
-The E2EE hardening pass — new wire protocol, full at-rest encryption, trust-on-first-use pairing — **compiles and runs**, and is now being put through its paces across different devices. This [...]
-=======
 Most messengers need data, a SIM, a server and an account. Bluechat needs none of them. When the network is down, expensive, blocked or simply not there, two phones within Bluetooth range can still talk, send photos and voice notes, and make voice and video calls.
->>>>>>> 8c6a559 (Bluechat 3.1.0: E2EE, support page, bash CI)
 
 | | |
 |---|---|
@@ -134,26 +130,14 @@ Claims are cheap, so here is how to verify them.
 # 1. The shipped APK asks for no network permission
 bash scripts/check-no-internet.sh EcclesBluechat-3.1.0.apk
 
-<<<<<<< HEAD
-**Eccles BlueChat removes it entirely.** Two phones pair directly over Bluetooth and talk to each other, peer-to-peer, with no third party ever in the loop. If it isn't on one of the two devices, [...]
-=======
 # 2. The file you downloaded is the file that was released
 bash scripts/verify-apk.sh EcclesBluechat-3.1.0.apk <sha256 from the release page>
->>>>>>> 8c6a559 (Bluechat 3.1.0: E2EE, support page, bash CI)
 
 # 3. The crypto test suite passes
 bash scripts/test.sh
 ```
 
-<<<<<<< HEAD
-## 🔐 End-to-End Encryption — The Core of This App
-
-This isn't "encryption as a feature." Encryption *is* the app. Every byte that crosses the Bluetooth link — text, photos, voice, video, calls — is protected by a modern, authenticated protocol[...]
-
-### How a session gets secured
-=======
 **How a connection is secured** (full detail in [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md)):
->>>>>>> 8c6a559 (Bluechat 3.1.0: E2EE, support page, bash CI)
 
 ```mermaid
 sequenceDiagram
@@ -205,15 +189,6 @@ bash scripts/build.sh debug   # just the APK
 
 | Script | What it does |
 |---|---|
-<<<<<<< HEAD
-| **Handshake** | Authenticated triple-ECDH (X3DH-style) over P-256, combining a long-term identity key with a fresh ephemeral key every session — giving both **forward secrecy** and **implicit [...]
-| **Session traffic** | **AES-256-GCM**, independent keys per direction, strictly increasing nonce counters — replayed packets are rejected outright, not just detected |
-| **Message integrity** | GCM's own authentication tag *is* the tamper check — no bolted-on checksum, no weaker legacy fallback |
-| **Identity keys** | Generated once per install, wrapped by an **AndroidKeystore**-backed AES-GCM key, stored outside backup/restore entirely |
-| **Peer trust** | **Trust-on-first-use** fingerprint pinning — the same MITM-detection model used by Signal and SSH. If a contact's fingerprint ever changes, you get an explicit warning *before[...]
-| **At-rest storage** | Messages **and** every piece of media (photos, voice notes, video) individually encrypted on disk with AndroidKeystore-backed AES-256-GCM keys |
-| **Decrypted cache** | Media is only ever decrypted into a **non-backed-up, cache-only** temp copy for viewing/playback — and that cache is wiped on every app start |
-=======
 | `scripts/ci.sh [--fast]` | The one command CI runs. `--fast` skips Gradle. |
 | `scripts/check-no-internet.sh [apk]` | Fails if INTERNET is requested in source or in an APK. |
 | `scripts/check-secrets.sh` | Fails if keystores, keys or `local.properties` are in the tree. |
@@ -223,70 +198,11 @@ bash scripts/build.sh debug   # just the APK
 | `scripts/release.sh <version>` | Build, sign, verify and checksum into `dist/`. |
 | `scripts/verify-apk.sh` | Checksum, signature and no-INTERNET check for a download. |
 | `scripts/make-demo.sh` | Rebuilds the README demo from a screen recording. |
->>>>>>> 8c6a559 (Bluechat 3.1.0: E2EE, support page, bash CI)
 
 Requires JDK 17 and the Android SDK (platform 35). The project uses only AndroidX and Material libraries, with no third-party SDKs.
 
 ## Under the hood
 
-<<<<<<< HEAD
-> ⚠️ **Honesty matters here.** This is hand-rolled protocol code. It has not yet had an independent cryptography review. It's built carefully and modeled on well-understood constructions (X3DH[...]
-
----
-
-## 🚀 Features
-
-#### 💬 Messaging
-- Text, photo, voice-note and video-file messages, all peer-to-peer
-- Delivered and encrypted the same way regardless of message type — no "lite" unencrypted fallback path
-
-#### 📞 Calling
-- Voice and video calling directly over Bluetooth
-- No carrier, no data plan, no internet connection involved at any point
-
-#### 🌐 Offline-First by Design
-- Not a "works offline too" afterthought — there is no online mode to fall back to
-- Pair, chat, and call anywhere two Bluetooth radios can reach each other
-
-#### 🧼 Nothing Extra
-- No ads, no in-app purchases, no analytics SDKs
-- No `INTERNET` permission at all — the app is architecturally incapable of phoning home
-
-#### 🔓 Transparent Trust
-- Your own device's fingerprint is always visible on the account screen for out-of-band verification
-- Fingerprint changes are surfaced explicitly, never silently accepted
-
----
-
-## 📲 Install
-
-Grab the latest build from **[Releases](../../releases)**. Since this is still being tested across devices, expect frequent updates — and please [report anything odd you hit](#-contributing).
-
----
-
-## 🛠️ Build From Source
-
-```bash
-git clone <this-repo-url>
-cd "Eccles Bluechat E2EE"
-./gradlew assembleDebug
-```
-
-Or just open the folder in Android Studio and hit run.
-
-**Requirements:** Android Studio (recent stable), `minSdk` 26 / `compileSdk` & `targetSdk` 34, and two physical devices for anything Bluetooth-related — emulators won't cut it here.
-
-### 🧪 Tests
-
-```bash
-./gradlew test                     # unit tests — local JVM, no device needed
-./gradlew connectedAndroidTest     # instrumented tests — needs a real device/emulator
-```
-
----
-
-## 🗂️ Project Structure
-=======
 | | |
 |---|---|
 | **Language** | Java, about 12,000 lines in `app/src/main` |
@@ -297,7 +213,6 @@ Or just open the folder in Android Studio and hit run.
 | **Media** | H.264 (AVC) video and AAC audio through `MediaCodec` |
 | **Tests** | 66 JVM unit tests plus 30 instrumented tests (Keystore, SQLite) |
 | **SDK** | min 26, target 35 |
->>>>>>> 8c6a559 (Bluechat 3.1.0: E2EE, support page, bash CI)
 
 ```
 app/src/main/java/starking/eccles/
@@ -324,19 +239,7 @@ Ideas and bug reports are welcome in [Issues](https://github.com/Igwe-Starking/e
 
 ---
 
-<<<<<<< HEAD
-## 🤝 Contributing
-
-Big or small, contributions help. Device testing and cryptography review are the highest-leverage things you can offer right now — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to get starte[...]
-
----
-
-## 📄 License
-
-[MIT](LICENSE) — free to use, modify, and share.
-=======
 ## Support the build
->>>>>>> 8c6a559 (Bluechat 3.1.0: E2EE, support page, bash CI)
 
 <div align="center">
 
